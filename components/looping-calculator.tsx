@@ -79,21 +79,68 @@ export function LoopingCalculator() {
 
   return (
     <TooltipProvider>
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8 overflow-x-hidden">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+        <div className="text-center mb-6 sm:mb-8 w-full">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center shrink-0">
               <TrendingUp className="w-6 h-6 text-emerald-500" />
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground">xLend Looping Yield Calculator</h1>
+            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground text-center wrap-break-word px-2">xLend Looping Yield Calculator</h1>
           </div>
-          <p className="text-muted-foreground text-lg">MultiversX DeFi Tool for xEGLD Multiply Strategies</p>
+          <p className="text-muted-foreground text-sm sm:text-base md:text-lg px-2">MultiversX DeFi Tool for xEGLD Multiply Strategies</p>
         </div>
 
-        <Card className="mb-6 bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border-emerald-500/20">
-          <CardContent className="py-4">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+        <Card className="mb-4 sm:mb-6 bg-linear-to-br from-emerald-500/10 via-emerald-500/5 to-cyan-500/10 border-emerald-500/20">
+          <CardContent className="py-4 sm:py-5 px-4 sm:px-6">
+            {/* Mobile Layout */}
+            <div className="sm:hidden space-y-4">
+              {/* Price Section */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                    <span className="font-bold text-emerald-500 text-lg">X</span>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">xEGLD Price</p>
+                    <p className="text-2xl font-bold text-foreground">${currentPrice.toFixed(2)}</p>
+                  </div>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={`shrink-0 ${
+                    dataSource === "live"
+                      ? "text-emerald-500 border-emerald-500/50 bg-emerald-500/5"
+                      : "text-amber-500 border-amber-500/50 bg-amber-500/5"
+                  }`}
+                >
+                  <Radio className={`w-2.5 h-2.5 mr-1 ${dataSource === "live" ? "text-emerald-500" : "text-amber-500"}`} />
+                  <span className="text-[10px]">{dataSource === "live" ? "Live" : "Fallback"}</span>
+                </Badge>
+              </div>
+
+              {/* Refresh Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchMarketData}
+                disabled={sdkLoading}
+                className="w-full gap-2 bg-background/50 hover:bg-background"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${sdkLoading ? "animate-spin" : ""}`} />
+                <span className="text-xs">Refresh from Xoxno SDK</span>
+              </Button>
+
+              {/* Last Updated */}
+              {lastUpdated && (
+                <p className="text-[10px] text-muted-foreground text-center">
+                  Last updated: {lastUpdated.toLocaleTimeString()}
+                </p>
+              )}
+            </div>
+
+            {/* Desktop Layout */}
+            <div className="hidden sm:flex sm:flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
                   <span className="font-bold text-emerald-500">X</span>
@@ -137,26 +184,26 @@ export function LoopingCalculator() {
           </CardContent>
         </Card>
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Input Panel */}
           <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="w-5 h-5 text-amber-500" />
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
                 Configuration
               </CardTitle>
-              <CardDescription>Adjust parameters to simulate your strategy</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Adjust parameters to simulate your strategy</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4 sm:space-y-6">
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
+                <Label className="flex items-center gap-2 text-sm">
                   Initial Amount (xEGLD)
                   <Tooltip>
                     <TooltipTrigger>
-                      <HelpCircle className="w-4 h-4 text-muted-foreground" />
+                      <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs">Your starting xEGLD collateral amount</p>
+                      <p className="max-w-xs text-xs sm:text-sm">Your starting xEGLD collateral amount</p>
                     </TooltipContent>
                   </Tooltip>
                 </Label>
@@ -169,18 +216,18 @@ export function LoopingCalculator() {
               </div>
 
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
+                <Label className="flex items-center gap-2 text-sm">
                   xEGLD Price ($)
                   <Tooltip>
                     <TooltipTrigger>
-                      <HelpCircle className="w-4 h-4 text-muted-foreground" />
+                      <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs">Current xEGLD price from Xoxno SDK (editable)</p>
+                      <p className="max-w-xs text-xs sm:text-sm">Current xEGLD price from Xoxno SDK (editable)</p>
                     </TooltipContent>
                   </Tooltip>
                   {dataSource === "live" && (
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge variant="secondary" className="text-[10px] sm:text-xs">
                       SDK
                     </Badge>
                   )}
@@ -194,18 +241,18 @@ export function LoopingCalculator() {
               </div>
 
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
+                <Label className="flex items-center gap-2 text-sm">
                   Supply APY (%)
                   <Tooltip>
                     <TooltipTrigger>
-                      <HelpCircle className="w-4 h-4 text-muted-foreground" />
+                      <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs">Current yield for supplying xEGLD on xLend</p>
+                      <p className="max-w-xs text-xs sm:text-sm">Current yield for supplying xEGLD on xLend</p>
                     </TooltipContent>
                   </Tooltip>
                   {dataSource === "live" && (
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge variant="secondary" className="text-[10px] sm:text-xs">
                       SDK
                     </Badge>
                   )}
@@ -219,18 +266,18 @@ export function LoopingCalculator() {
               </div>
 
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
+                <Label className="flex items-center gap-2 text-sm">
                   Borrow APY (%)
                   <Tooltip>
                     <TooltipTrigger>
-                      <HelpCircle className="w-4 h-4 text-muted-foreground" />
+                      <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs">Current cost to borrow EGLD on xLend</p>
+                      <p className="max-w-xs text-xs sm:text-sm">Current cost to borrow EGLD on xLend</p>
                     </TooltipContent>
                   </Tooltip>
                   {dataSource === "live" && (
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge variant="secondary" className="text-[10px] sm:text-xs">
                       SDK
                     </Badge>
                   )}
@@ -244,15 +291,15 @@ export function LoopingCalculator() {
               </div>
 
               <div className="space-y-2">
-                <Label className="flex items-center justify-between">
+                <Label className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2">
                     Loops to Show
                     <Tooltip>
                       <TooltipTrigger>
-                        <HelpCircle className="w-4 h-4 text-muted-foreground" />
+                        <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p className="max-w-xs">Number of loop iterations to display in the table</p>
+                        <p className="max-w-xs text-xs sm:text-sm">Number of loop iterations to display in the table</p>
                       </TooltipContent>
                     </Tooltip>
                   </span>
@@ -261,10 +308,10 @@ export function LoopingCalculator() {
                 <Slider value={[numLoops]} onValueChange={([v]) => setNumLoops(v)} min={1} max={10} step={1} />
               </div>
 
-              <div className="pt-4 border-t border-border space-y-4">
-                <p className="text-sm font-medium text-muted-foreground">Advanced Settings</p>
+              <div className="pt-3 sm:pt-4 border-t border-border space-y-3 sm:space-y-4">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Advanced Settings</p>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs flex items-center gap-1">
                       LTV (e-Mode)
@@ -319,13 +366,13 @@ export function LoopingCalculator() {
           </Card>
 
           {/* Results Panel */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Warnings */}
             {hasWarning && (
               <Alert variant="destructive" className="border-amber-500/50 bg-amber-500/10 text-amber-600">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Risk Warning</AlertTitle>
-                <AlertDescription>
+                <AlertTitle className="text-sm sm:text-base">Risk Warning</AlertTitle>
+                <AlertDescription className="text-xs sm:text-sm">
                   {loopsData.some((d) => d.netApy < 0) && "Some configurations result in negative APY. "}
                   {loopsData.some((d) => d.depegToLiq < 10) &&
                     "Low depeg buffer detected (<10%). Consider fewer loops for safety."}
@@ -335,62 +382,62 @@ export function LoopingCalculator() {
 
             {/* Max Safe Loops Card */}
             <Card className="border-emerald-500/30 bg-emerald-500/5">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-emerald-500" />
+              <CardHeader className="pb-3 sm:pb-6">
+                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                  <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
                   Max Safe Loops: {maxSafe.loops}
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-xs sm:text-sm">
                   Effective LTV stays below {(maxSafeLtv * 100).toFixed(0)}% threshold (assuming no depeg)
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center p-3 rounded-lg bg-background/50">
-                    <p className="text-2xl font-bold text-foreground">{maxSafe.leverage.toFixed(2)}x</p>
-                    <p className="text-xs text-muted-foreground">Leverage</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+                  <div className="text-center p-2 sm:p-3 rounded-lg bg-background/50 min-w-0">
+                    <p className="text-base sm:text-lg md:text-2xl font-bold text-foreground truncate">{maxSafe.leverage.toFixed(2)}x</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Leverage</p>
                   </div>
-                  <div className="text-center p-3 rounded-lg bg-background/50">
-                    <p className={`text-2xl font-bold ${maxSafe.netApy >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+                  <div className="text-center p-2 sm:p-3 rounded-lg bg-background/50 min-w-0">
+                    <p className={`text-base sm:text-lg md:text-2xl font-bold truncate ${maxSafe.netApy >= 0 ? "text-emerald-500" : "text-red-500"}`}>
                       {maxSafe.netApy.toFixed(2)}%
                     </p>
-                    <p className="text-xs text-muted-foreground">Net APY</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Net APY</p>
                   </div>
-                  <div className="text-center p-3 rounded-lg bg-background/50">
-                    <p className="text-2xl font-bold text-foreground">{maxSafe.annualEgld.toFixed(2)}</p>
-                    <p className="text-xs text-muted-foreground">Annual (EGLD)</p>
+                  <div className="text-center p-2 sm:p-3 rounded-lg bg-background/50 min-w-0">
+                    <p className="text-base sm:text-lg md:text-2xl font-bold text-foreground truncate">{maxSafe.annualEgld.toFixed(2)}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Annual (EGLD)</p>
                   </div>
-                  <div className="text-center p-3 rounded-lg bg-background/50">
-                    <p className="text-2xl font-bold text-emerald-500">${maxSafe.annualUsd.toFixed(0)}</p>
-                    <p className="text-xs text-muted-foreground">Annual (USD)</p>
+                  <div className="text-center p-2 sm:p-3 rounded-lg bg-background/50 min-w-0">
+                    <p className="text-base sm:text-lg md:text-2xl font-bold text-emerald-500 truncate">${maxSafe.annualUsd.toFixed(0)}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Annual (USD)</p>
                   </div>
                 </div>
-                <p className="mt-4 text-xs text-muted-foreground flex items-start gap-2">
-                  <Info className="w-4 h-4 shrink-0 mt-0.5" />
-                  Assumes perfect peg between xEGLD and EGLD. &quot;Depeg to Liq&quot; shows the % price drop needed to
-                  trigger liquidation (HF{"<"}1).
+                <p className="mt-3 sm:mt-4 text-[10px] sm:text-xs text-muted-foreground flex items-start gap-2">
+                  <Info className="w-3 h-3 sm:w-4 sm:h-4 shrink-0 mt-0.5" />
+                  <span>Assumes perfect peg between xEGLD and EGLD. &quot;Depeg to Liq&quot; shows the % price drop needed to
+                  trigger liquidation (HF{"<"}1).</span>
                 </p>
               </CardContent>
             </Card>
 
             {/* Loops Table */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Loop Comparison</CardTitle>
-                <CardDescription>Compare yields and risks across different loop counts</CardDescription>
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3 sm:pb-6">
+                <CardTitle className="text-lg sm:text-xl">Loop Comparison</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Compare yields and risks across different loop counts</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-0 sm:p-6">
                 <LoopsTable data={loopsData} maxSafeLoops={maxSafe.loops} />
               </CardContent>
             </Card>
 
             {/* Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle>APY Projection</CardTitle>
-                <CardDescription>Projected net APY across different loop counts</CardDescription>
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3 sm:pb-6">
+                <CardTitle className="text-lg sm:text-xl">APY Projection</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Projected net APY across different loop counts</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-2 sm:px-6">
                 <ApyChart data={chartData} maxSafeLoops={maxSafe.loops} maxSafeLtv={maxSafeLtv} />
               </CardContent>
             </Card>
@@ -398,15 +445,15 @@ export function LoopingCalculator() {
         </div>
 
         {/* Educational Section */}
-        <div className="mt-8 grid md:grid-cols-3 gap-6">
+        <div className="mt-6 sm:mt-8 grid md:grid-cols-3 gap-4 sm:gap-6">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-amber-500" />
+            <CardHeader className="pb-3 sm:pb-6">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
                 Risks to Consider
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-muted-foreground">
               <p>
                 <strong className="text-foreground">Depeg Risk:</strong> If xEGLD loses peg to EGLD, your collateral
                 value drops, risking liquidation.
@@ -423,13 +470,13 @@ export function LoopingCalculator() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Info className="w-5 h-5 text-cyan-500" />
+            <CardHeader className="pb-3 sm:pb-6">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <Info className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-500" />
                 How It Works
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-muted-foreground">
               <p>1. Supply xEGLD as collateral</p>
               <p>2. Borrow EGLD up to LTV limit</p>
               <p>3. Swap borrowed EGLD to xEGLD</p>
@@ -439,13 +486,13 @@ export function LoopingCalculator() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Shield className="w-5 h-5 text-emerald-500" />
+            <CardHeader className="pb-3 sm:pb-6">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
                 Safety Tips
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-muted-foreground">
               <p>
                 • Start with <strong className="text-foreground">1-2 loops</strong> for {"<"}20% risk
               </p>
@@ -457,16 +504,16 @@ export function LoopingCalculator() {
         </div>
 
         {/* Footer */}
-        <div className="mt-8 text-center">
+        <div className="mt-6 sm:mt-8 text-center px-4">
           <a
             href="https://xoxno.com/"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-emerald-500 hover:text-emerald-400 transition-colors"
+            className="inline-flex items-center gap-2 text-sm sm:text-base text-emerald-500 hover:text-emerald-400 transition-colors"
           >
-            Open xLend on Xoxno <ExternalLink className="w-4 h-4" />
+            Open xLend on Xoxno <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4" />
           </a>
-          <p className="text-xs text-muted-foreground mt-2">
+          <p className="text-[10px] sm:text-xs text-muted-foreground mt-2 max-w-2xl mx-auto">
             This calculator is for educational purposes only and is not affiliated with Xoxno. Always DYOR and
             understand the risks before investing.
           </p>

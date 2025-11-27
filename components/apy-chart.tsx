@@ -30,9 +30,9 @@ export function ApyChart({ data, maxSafeLoops }: ApyChartProps) {
   const maxLoops = chartData.length
 
   return (
-    <div className="h-[300px] w-full">
+    <div className="h-[250px] sm:h-[300px] w-full overflow-hidden">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+        <LineChart data={chartData} margin={{ top: 10, right: 5, left: -20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
 
           {/* Risk zones */}
@@ -41,16 +41,16 @@ export function ApyChart({ data, maxSafeLoops }: ApyChartProps) {
 
           <XAxis
             dataKey="loops"
-            tick={{ fill: "hsl(var(--foreground))", fontSize: 12 }}
+            tick={{ fill: "hsl(var(--foreground))", fontSize: 10 }}
             axisLine={{ stroke: "hsl(var(--border))" }}
             tickLine={{ stroke: "hsl(var(--border))" }}
-            label={{ value: "Loops", position: "insideBottom", offset: -5, fill: "hsl(var(--foreground))" }}
+            label={{ value: "Loops", position: "insideBottom", offset: -5, fill: "hsl(var(--foreground))", fontSize: 11 }}
           />
           <YAxis
-            tick={{ fill: "hsl(var(--foreground))", fontSize: 12 }}
+            tick={{ fill: "hsl(var(--foreground))", fontSize: 10 }}
             axisLine={{ stroke: "hsl(var(--border))" }}
             tickLine={{ stroke: "hsl(var(--border))" }}
-            label={{ value: "Net APY (%)", angle: -90, position: "insideLeft", fill: "hsl(var(--foreground))" }}
+            label={{ value: "Net APY (%)", angle: -90, position: "insideLeft", fill: "hsl(var(--foreground))", fontSize: 11 }}
           />
           <Tooltip
             contentStyle={{
@@ -58,6 +58,7 @@ export function ApyChart({ data, maxSafeLoops }: ApyChartProps) {
               border: "1px solid hsl(var(--border))",
               borderRadius: "8px",
               color: "hsl(var(--foreground))",
+              fontSize: "12px",
             }}
             formatter={(value: number, name: string) => {
               if (name === "netApy") return [`${value.toFixed(2)}%`, "Net APY"]
@@ -66,14 +67,14 @@ export function ApyChart({ data, maxSafeLoops }: ApyChartProps) {
               return [value, name]
             }}
             labelFormatter={(label) => `Loop ${label}`}
-            labelStyle={{ color: "hsl(var(--foreground))" }}
+            labelStyle={{ color: "hsl(var(--foreground))", fontSize: "12px" }}
           />
 
           <ReferenceLine
             x={maxSafeLoops}
             stroke="rgb(16, 185, 129)"
             strokeDasharray="5 5"
-            label={{ value: "Max Safe", fill: "rgb(16, 185, 129)", fontSize: 12 }}
+            label={{ value: "Max Safe", fill: "rgb(16, 185, 129)", fontSize: 10 }}
           />
 
           <Line
@@ -81,8 +82,8 @@ export function ApyChart({ data, maxSafeLoops }: ApyChartProps) {
             dataKey="netApy"
             stroke="rgb(16, 185, 129)"
             strokeWidth={2}
-            dot={{ fill: "rgb(16, 185, 129)", strokeWidth: 2, r: 4 }}
-            activeDot={{ r: 6, fill: "rgb(16, 185, 129)" }}
+            dot={{ fill: "rgb(16, 185, 129)", strokeWidth: 2, r: 3 }}
+            activeDot={{ r: 5, fill: "rgb(16, 185, 129)" }}
           />
         </LineChart>
       </ResponsiveContainer>
