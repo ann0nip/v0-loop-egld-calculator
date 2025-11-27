@@ -42,7 +42,6 @@ export function LoopingCalculator() {
       setDataSource(data.source)
       setLastUpdated(new Date())
     } catch (error) {
-      console.error("[v0] Failed to fetch market data:", error)
       setDataSource("fallback")
     } finally {
       setSdkLoading(false)
@@ -209,6 +208,7 @@ export function LoopingCalculator() {
                 </Label>
                 <Input
                   type="number"
+                  step="0.01"
                   value={initialAmount}
                   onChange={(e) => setInitialAmount(Number(e.target.value) || 0)}
                   min={0}
@@ -323,7 +323,7 @@ export function LoopingCalculator() {
                     </Label>
                     <Input
                       type="number"
-                      step="0.001"
+                      step="0.01"
                       value={ltv}
                       onChange={(e) => setLtv(Number(e.target.value) || 0)}
                     />
@@ -337,7 +337,7 @@ export function LoopingCalculator() {
                         </Badge>
                       )}
                     </Label>
-                    <Input type="number" step="0.001" value={lt} onChange={(e) => setLt(Number(e.target.value) || 0)} />
+                    <Input type="number" step="0.01" value={lt} onChange={(e) => setLt(Number(e.target.value) || 0)} />
                   </div>
                 </div>
 

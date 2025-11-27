@@ -16,11 +16,6 @@ export async function GET() {
         .profile(), // eGLD for borrow APY
     ])
 
-    console.log("[v0] xEGLD extraApy:", xegldProfile.extraApy)
-    console.log("[v0] xEGLD eModeCategoryProfiles:", xegldProfile.eModeCategoryProfiles)
-    console.log("[v0] xEGLD indexes:", xegldProfile.indexes)
-    console.log("[v0] eGLD borrowApy raw:", egldProfile.borrowApy)
-
     // Supply APY: xEGLD native staking yield, multiply by 100 for percentage
     const rawNativeApy = xegldProfile.extraApy?.nativeApy
     const supplyApy = typeof rawNativeApy === "number" ? rawNativeApy * 100 : FALLBACK_DATA.supplyApy
@@ -50,19 +45,11 @@ export async function GET() {
     const rawPrice = xegldProfile.indexes?.usdPriceShort
     const price = typeof rawPrice === "number" ? rawPrice : FALLBACK_DATA.price
 
-    console.log("[v0] Final processed values:", {
-      supplyApy,
-      borrowApy,
-      ltv,
-      liquidationThreshold,
-      price,
-    })
-
     return NextResponse.json({
-      supplyApy: Number(supplyApy.toFixed(4)),
-      borrowApy: Number(borrowApy.toFixed(4)),
-      ltv: Number(ltv.toFixed(4)),
-      liquidationThreshold: Number(liquidationThreshold.toFixed(4)),
+      supplyApy: Number(supplyApy.toFixed(2)),
+      borrowApy: Number(borrowApy.toFixed(2)),
+      ltv: Number(ltv.toFixed(2)),
+      liquidationThreshold: Number(liquidationThreshold.toFixed(2)),
       price: Number(price.toFixed(2)),
       source: "live",
     })

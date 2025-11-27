@@ -25,14 +25,12 @@ export async function fetchXoxnoMarketData(): Promise<XoxnoMarketData> {
     })
 
     if (!response.ok) {
-      console.warn("[v0] Xoxno API returned non-OK status, using fallback")
       return FALLBACK_DATA
     }
 
     const data = await response.json()
     return data as XoxnoMarketData
   } catch (error) {
-    console.warn("[v0] Failed to fetch Xoxno market data:", error)
     return FALLBACK_DATA
   }
 }

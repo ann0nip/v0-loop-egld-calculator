@@ -74,7 +74,12 @@ export function ApyChart({ data, maxSafeLoops }: ApyChartProps) {
             x={maxSafeLoops}
             stroke="rgb(16, 185, 129)"
             strokeDasharray="5 5"
-            label={{ value: "Max Safe", fill: "rgb(16, 185, 129)", fontSize: 10 }}
+            label={{
+              value: "Max Safe",
+              fill: "rgb(16, 185, 129)",
+              fontSize: 10,
+              position: "top"
+            }}
           />
 
           <Line
