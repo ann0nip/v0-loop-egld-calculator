@@ -18,18 +18,20 @@ import {
   generateLtvComparison,
   type YearSimulationResult,
 } from "@/lib/calculations"
-import { fetchXoxnoMarketData, FALLBACK_DATA, type XoxnoMarketData } from "@/lib/xoxno-api"
+import { fetchXoxnoMarketData, type XoxnoMarketData } from "@/lib/xoxno-api"
 import { useIMask } from "react-imask"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export function LoopingCalculator() {
   const [initialAmount, setInitialAmount] = useState(100)
-  const [supplyApy, setSupplyApy] = useState(FALLBACK_DATA.supplyApy)
-  const [borrowApy, setBorrowApy] = useState(FALLBACK_DATA.borrowApy)
-  const [ltvTarget, setLtvTarget] = useState(FALLBACK_DATA.ltv) // Default to SDK's optimal LTV
-  const [egldPrice, setEgldPrice] = useState<number>(FALLBACK_DATA.price)
+  const [supplyApy, setSupplyApy] = useState(0)
+  const [borrowApy, setBorrowApy] = useState(0)
+  const [ltvTarget, setLtvTarget] = useState(0.925) // Default to SDK's optimal LTV
+  const [egldPrice, setEgldPrice] = useState<number>(0)
   const [sdkLoading, setSdkLoading] = useState(true)
   const [dataSource, setDataSource] = useState<"live" | "fallback">("fallback")
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [loadError, setLoadError] = useState(false)
 
   // High borrow period settings
   const [highBorrowApy, setHighBorrowApy] = useState(21)
@@ -37,127 +39,145 @@ export function LoopingCalculator() {
   const [highBorrowDaysPerPeriod, setHighBorrowDaysPerPeriod] = useState(15)
 
   // IMask refs for numeric inputs
-  const initialAmountMask = useIMask({
-    mask: Number,
-    scale: 2,
-    thousandsSeparator: '',
-    radix: '.',
-    mapToRadix: ['.'],
-    min: 0,
-  }, {
-    defaultValue: initialAmount.toString(),
-    onAccept: (value) => {
-      const numValue = parseFloat(value as string) || 0
-      setInitialAmount(numValue)
+  const initialAmountMask = useIMask(
+    {
+      mask: Number,
+      scale: 2,
+      radix: '.',
+      mapToRadix: ['.', ','],
+      thousandsSeparator: '',
+      min: 0,
+    },
+    {
+      onAccept: (value, maskRef) => {
+        const numValue = maskRef.typedValue || 0
+        setInitialAmount(numValue)
+      },
     }
-  })
+  )
 
-  const egldPriceMask = useIMask({
-    mask: Number,
-    scale: 2,
-    thousandsSeparator: '',
-    radix: '.',
-    mapToRadix: ['.'],
-    min: 0,
-  }, {
-    defaultValue: egldPrice.toString(),
-    onAccept: (value) => {
-      const numValue = parseFloat(value as string) || 0
-      setEgldPrice(numValue)
+  const egldPriceMask = useIMask(
+    {
+      mask: Number,
+      scale: 2,
+      radix: '.',
+      mapToRadix: ['.', ','],
+      thousandsSeparator: '',
+      min: 0,
+    },
+    {
+      onAccept: (value, maskRef) => {
+        const numValue = maskRef.typedValue || 0
+        setEgldPrice(numValue)
+      },
     }
-  })
+  )
 
-  const supplyApyMask = useIMask({
-    mask: Number,
-    scale: 2,
-    thousandsSeparator: '',
-    radix: '.',
-    mapToRadix: ['.'],
-    min: 0,
-  }, {
-    defaultValue: supplyApy.toString(),
-    onAccept: (value) => {
-      const numValue = parseFloat(value as string) || 0
-      setSupplyApy(numValue)
+  const supplyApyMask = useIMask(
+    {
+      mask: Number,
+      scale: 2,
+      radix: '.',
+      mapToRadix: ['.', ','],
+      thousandsSeparator: '',
+      min: 0,
+    },
+    {
+      onAccept: (value, maskRef) => {
+        const numValue = maskRef.typedValue || 0
+        setSupplyApy(numValue)
+      },
     }
-  })
+  )
 
-  const borrowApyMask = useIMask({
-    mask: Number,
-    scale: 2,
-    thousandsSeparator: '',
-    radix: '.',
-    mapToRadix: ['.'],
-    min: 0,
-  }, {
-    defaultValue: borrowApy.toString(),
-    onAccept: (value) => {
-      const numValue = parseFloat(value as string) || 0
-      setBorrowApy(numValue)
+  const borrowApyMask = useIMask(
+    {
+      mask: Number,
+      scale: 2,
+      radix: '.',
+      mapToRadix: ['.', ','],
+      thousandsSeparator: '',
+      min: 0,
+    },
+    {
+      onAccept: (value, maskRef) => {
+        const numValue = maskRef.typedValue || 0
+        setBorrowApy(numValue)
+      },
     }
-  })
+  )
 
-  const highBorrowApyMask = useIMask({
-    mask: Number,
-    scale: 2,
-    thousandsSeparator: '',
-    radix: '.',
-    mapToRadix: ['.'],
-    min: 0,
-  }, {
-    defaultValue: highBorrowApy.toString(),
-    onAccept: (value) => {
-      const numValue = parseFloat(value as string) || 0
-      setHighBorrowApy(numValue)
+  const highBorrowApyMask = useIMask(
+    {
+      mask: Number,
+      scale: 2,
+      radix: '.',
+      mapToRadix: ['.', ','],
+      thousandsSeparator: '',
+      min: 0,
+    },
+    {
+      onAccept: (value, maskRef) => {
+        const numValue = maskRef.typedValue || 0
+        setHighBorrowApy(numValue)
+      },
     }
-  })
+  )
 
-  const highBorrowPeriodsMask = useIMask({
-    mask: Number,
-    scale: 0,
-    thousandsSeparator: '',
-    min: 0,
-    max: 12,
-  }, {
-    defaultValue: highBorrowPeriods.toString(),
-    onAccept: (value) => {
-      const numValue = Number.parseInt(value as string, 10) || 0
-      setHighBorrowPeriods(Math.min(12, Math.max(0, numValue)))
+  const highBorrowPeriodsMask = useIMask(
+    {
+      mask: Number,
+      scale: 0,
+      thousandsSeparator: '',
+      min: 0,
+      max: 12,
+    },
+    {
+      onAccept: (value, maskRef) => {
+        const numValue = Math.floor(maskRef.typedValue || 0)
+        setHighBorrowPeriods(Math.min(12, Math.max(0, numValue)))
+      },
     }
-  })
+  )
 
-  const highBorrowDaysMask = useIMask({
-    mask: Number,
-    scale: 0,
-    thousandsSeparator: '',
-    min: 1,
-    max: 60,
-  }, {
-    defaultValue: highBorrowDaysPerPeriod.toString(),
-    onAccept: (value) => {
-      const numValue = Number.parseInt(value as string, 10) || 1
-      setHighBorrowDaysPerPeriod(Math.min(60, Math.max(1, numValue)))
+  const highBorrowDaysMask = useIMask(
+    {
+      mask: Number,
+      scale: 0,
+      thousandsSeparator: '',
+      min: 1,
+      max: 60,
+    },
+    {
+      onAccept: (value, maskRef) => {
+        const numValue = Math.floor(maskRef.typedValue || 1)
+        setHighBorrowDaysPerPeriod(Math.min(60, Math.max(1, numValue)))
+      },
     }
-  })
+  )
 
   const fetchMarketData = async () => {
     setSdkLoading(true)
+    setLoadError(false)
     try {
       const data: XoxnoMarketData = await fetchXoxnoMarketData()
 
+      // Always set the values (either live or fallback)
       setSupplyApy(data.supplyApy)
       setBorrowApy(data.borrowApy)
-      setLtvTarget(data.ltv) // Use SDK's max LTV as optimal default
+      setLtvTarget(data.ltv)
       setEgldPrice(data.price)
       setDataSource(data.source)
       setLastUpdated(new Date())
 
-      // Update IMask values
-      supplyApyMask.setValue(data.supplyApy.toString())
-      borrowApyMask.setValue(data.borrowApy.toString())
-      egldPriceMask.setValue(data.price.toString())
+      // Show error if using fallback data
+      if (data.source === "fallback") {
+        setLoadError(true)
+      }
     } catch {
-      setDataSource("fallback")
+      // This shouldn't happen since fetchXoxnoMarketData handles errors
+      // but keep it as a safety net
+      setLoadError(true)
     } finally {
       setSdkLoading(false)
     }
@@ -167,6 +187,21 @@ export function LoopingCalculator() {
     fetchMarketData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Sync IMask values ONLY when SDK finishes loading (one-time sync)
+  useEffect(() => {
+    if (!sdkLoading && egldPrice > 0) {
+      // Only set values from SDK data, don't create a loop
+      initialAmountMask.setValue(initialAmount.toString())
+      egldPriceMask.setValue(egldPrice.toString())
+      supplyApyMask.setValue(supplyApy.toString())
+      borrowApyMask.setValue(borrowApy.toString())
+      highBorrowApyMask.setValue(highBorrowApy.toString())
+      highBorrowPeriodsMask.setValue(highBorrowPeriods.toString())
+      highBorrowDaysMask.setValue(highBorrowDaysPerPeriod.toString())
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sdkLoading])
 
   const currentPrice = egldPrice
 
@@ -343,6 +378,16 @@ export function LoopingCalculator() {
               <CardDescription className="text-xs sm:text-sm">Adjust parameters to simulate your strategy</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 sm:space-y-6">
+              {loadError && (
+                <Alert className="border-amber-500/50 bg-amber-500/10">
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  <AlertTitle className="text-amber-600">Using Fallback Data</AlertTitle>
+                  <AlertDescription className="text-muted-foreground">
+                    Could not fetch live data from Xoxno SDK. Using fallback values. You can edit them manually or try refreshing.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div className="space-y-2">
                 <Label className="flex items-center gap-2 text-sm">
                   Initial Deposit (xEGLD)
@@ -378,10 +423,14 @@ export function LoopingCalculator() {
                     </Badge>
                   )}
                 </Label>
-                <Input
-                  ref={egldPriceMask.ref as any}
-                  placeholder="0"
-                />
+                {sdkLoading ? (
+                  <Skeleton className="h-10 w-full" />
+                ) : (
+                  <Input
+                    ref={egldPriceMask.ref as any}
+                    placeholder="0"
+                  />
+                )}
               </div>
 
               <div className="space-y-2">
@@ -401,10 +450,14 @@ export function LoopingCalculator() {
                     </Badge>
                   )}
                 </Label>
-                <Input
-                  ref={supplyApyMask.ref as any}
-                  placeholder="0"
-                />
+                {sdkLoading ? (
+                  <Skeleton className="h-10 w-full" />
+                ) : (
+                  <Input
+                    ref={supplyApyMask.ref as any}
+                    placeholder="0"
+                  />
+                )}
               </div>
 
               <div className="space-y-2">
@@ -424,10 +477,14 @@ export function LoopingCalculator() {
                     </Badge>
                   )}
                 </Label>
-                <Input
-                  ref={borrowApyMask.ref as any}
-                  placeholder="0"
-                />
+                {sdkLoading ? (
+                  <Skeleton className="h-10 w-full" />
+                ) : (
+                  <Input
+                    ref={borrowApyMask.ref as any}
+                    placeholder="0"
+                  />
+                )}
               </div>
 
               <div className="space-y-2">
@@ -526,93 +583,6 @@ export function LoopingCalculator() {
               </AlertDescription>
             </Alert>
 
-            {/* Two Simulation Results Side by Side */}
-            <div className="grid md:grid-cols-2 gap-4">
-              {/* Optimistic Path */}
-              <Card className={`border-2 ${isOptimisticGrowing ? "border-emerald-500/30 bg-emerald-500/5" : "border-red-500/30 bg-red-500/5"}`}>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                    <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
-                    Optimistic Path
-                  </CardTitle>
-                  <CardDescription className="text-[10px] sm:text-xs">
-                    Normal borrow APY ({borrowApy}%) all year
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="text-center p-2 rounded-lg bg-background/50">
-                      <p className={`text-lg sm:text-xl font-bold ${isOptimisticGrowing ? "text-emerald-500" : "text-red-500"}`}>
-                        {optimisticSimulation.finalNetPosition.toFixed(2)}
-                      </p>
-                      <p className="text-[9px] sm:text-[10px] text-muted-foreground">Final (xEGLD)</p>
-                    </div>
-                    <div className="text-center p-2 rounded-lg bg-background/50">
-                      <p className={`text-lg sm:text-xl font-bold ${isOptimisticGrowing ? "text-emerald-500" : "text-red-500"}`}>
-                        {optimisticSimulation.effectiveNetApy >= 0 ? "+" : ""}{optimisticSimulation.effectiveNetApy.toFixed(1)}%
-                      </p>
-                      <p className="text-[9px] sm:text-[10px] text-muted-foreground">Net APY</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-[10px] sm:text-xs">
-                    <div className="p-1.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-                      <p className="text-muted-foreground">Earned</p>
-                      <p className="font-medium text-emerald-500">+{optimisticSimulation.totalSupplyEarned.toFixed(2)}</p>
-                    </div>
-                    <div className="p-1.5 rounded bg-red-500/10 border border-red-500/20">
-                      <p className="text-muted-foreground">Cost</p>
-                      <p className="font-medium text-red-500">-{optimisticSimulation.totalBorrowPaid.toFixed(2)}</p>
-                    </div>
-                  </div>
-                  <p className="text-center text-emerald-500 font-medium text-sm">
-                    ${(optimisticSimulation.finalNetPosition * currentPrice).toFixed(0)} USD
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Stress Test */}
-              <Card className={`border-2 ${isStressTestGrowing ? "border-emerald-500/30 bg-emerald-500/5" : "border-amber-500/30 bg-amber-500/5"}`}>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                    <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
-                    Stress Test
-                  </CardTitle>
-                  <CardDescription className="text-[10px] sm:text-xs">
-                    {highBorrowPeriods}×{highBorrowDaysPerPeriod}d of {highBorrowApy}% borrow APY
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="text-center p-2 rounded-lg bg-background/50">
-                      <p className={`text-lg sm:text-xl font-bold ${isStressTestGrowing ? "text-emerald-500" : "text-amber-500"}`}>
-                        {stressTestSimulation.finalNetPosition.toFixed(2)}
-                      </p>
-                      <p className="text-[9px] sm:text-[10px] text-muted-foreground">Final (xEGLD)</p>
-                    </div>
-                    <div className="text-center p-2 rounded-lg bg-background/50">
-                      <p className={`text-lg sm:text-xl font-bold ${isStressTestGrowing ? "text-emerald-500" : "text-amber-500"}`}>
-                        {stressTestSimulation.effectiveNetApy >= 0 ? "+" : ""}{stressTestSimulation.effectiveNetApy.toFixed(1)}%
-                      </p>
-                      <p className="text-[9px] sm:text-[10px] text-muted-foreground">Net APY</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-[10px] sm:text-xs">
-                    <div className="p-1.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-                      <p className="text-muted-foreground">Earned</p>
-                      <p className="font-medium text-emerald-500">+{stressTestSimulation.totalSupplyEarned.toFixed(2)}</p>
-                    </div>
-                    <div className="p-1.5 rounded bg-red-500/10 border border-red-500/20">
-                      <p className="text-muted-foreground">Cost</p>
-                      <p className="font-medium text-red-500">-{stressTestSimulation.totalBorrowPaid.toFixed(2)}</p>
-                    </div>
-                  </div>
-                  <p className={`text-center font-medium text-sm ${isStressTestGrowing ? "text-emerald-500" : "text-amber-500"}`}>
-                    ${(stressTestSimulation.finalNetPosition * currentPrice).toFixed(0)} USD
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
             {/* Summary Stats */}
             <Card className="bg-muted/30">
               <CardContent className="py-4">
@@ -644,6 +614,127 @@ export function LoopingCalculator() {
               </CardContent>
             </Card>
 
+            {/* Two Simulation Results Side by Side */}
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* Optimistic Path */}
+              <Card className={`border-2 ${sdkLoading ? "border-muted" : isOptimisticGrowing ? "border-emerald-500/30 bg-emerald-500/5" : "border-red-500/30 bg-red-500/5"}`}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
+                    Optimistic Path
+                  </CardTitle>
+                  <CardDescription className="text-[10px] sm:text-xs">
+                    {sdkLoading ? <Skeleton className="h-4 w-32" /> : `Normal borrow APY (${borrowApy}%) all year`}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {sdkLoading ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Skeleton className="h-20 w-full" />
+                        <Skeleton className="h-20 w-full" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Skeleton className="h-12 w-full" />
+                        <Skeleton className="h-12 w-full" />
+                      </div>
+                      <Skeleton className="h-6 w-32 mx-auto" />
+                    </>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="text-center p-2 rounded-lg bg-background/50">
+                          <p className={`text-lg sm:text-xl font-bold ${isOptimisticGrowing ? "text-emerald-500" : "text-red-500"}`}>
+                            {optimisticSimulation.finalNetPosition.toFixed(2)}
+                          </p>
+                          <p className="text-[9px] sm:text-[10px] text-muted-foreground">Final (xEGLD)</p>
+                        </div>
+                        <div className="text-center p-2 rounded-lg bg-background/50">
+                          <p className={`text-lg sm:text-xl font-bold ${isOptimisticGrowing ? "text-emerald-500" : "text-red-500"}`}>
+                            {optimisticSimulation.effectiveNetApy >= 0 ? "+" : ""}{optimisticSimulation.effectiveNetApy.toFixed(1)}%
+                          </p>
+                          <p className="text-[9px] sm:text-[10px] text-muted-foreground">Net APY</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-[10px] sm:text-xs">
+                        <div className="p-1.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                          <p className="text-muted-foreground">Earned</p>
+                          <p className="font-medium text-emerald-500">+{optimisticSimulation.totalSupplyEarned.toFixed(2)}</p>
+                        </div>
+                        <div className="p-1.5 rounded bg-red-500/10 border border-red-500/20">
+                          <p className="text-muted-foreground">Cost</p>
+                          <p className="font-medium text-red-500">-{optimisticSimulation.totalBorrowPaid.toFixed(2)}</p>
+                        </div>
+                      </div>
+                      <p className="text-center text-emerald-500 font-medium text-sm">
+                        ${(optimisticSimulation.finalNetPosition * currentPrice).toFixed(0)} USD
+                      </p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Stress Test */}
+              <Card className={`border-2 ${sdkLoading ? "border-muted" : isStressTestGrowing ? "border-emerald-500/30 bg-emerald-500/5" : "border-amber-500/30 bg-amber-500/5"}`}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
+                    Stress Test
+                  </CardTitle>
+                  <CardDescription className="text-[10px] sm:text-xs">
+                    {sdkLoading ? <Skeleton className="h-4 w-40" /> : `${highBorrowPeriods}×${highBorrowDaysPerPeriod}d of ${highBorrowApy}% borrow APY`}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {sdkLoading ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Skeleton className="h-20 w-full" />
+                        <Skeleton className="h-20 w-full" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Skeleton className="h-12 w-full" />
+                        <Skeleton className="h-12 w-full" />
+                      </div>
+                      <Skeleton className="h-6 w-32 mx-auto" />
+                    </>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="text-center p-2 rounded-lg bg-background/50">
+                          <p className={`text-lg sm:text-xl font-bold ${isStressTestGrowing ? "text-emerald-500" : "text-amber-500"}`}>
+                            {stressTestSimulation.finalNetPosition.toFixed(2)}
+                          </p>
+                          <p className="text-[9px] sm:text-[10px] text-muted-foreground">Final (xEGLD)</p>
+                        </div>
+                        <div className="text-center p-2 rounded-lg bg-background/50">
+                          <p className={`text-lg sm:text-xl font-bold ${isStressTestGrowing ? "text-emerald-500" : "text-amber-500"}`}>
+                            {stressTestSimulation.effectiveNetApy >= 0 ? "+" : ""}{stressTestSimulation.effectiveNetApy.toFixed(1)}%
+                          </p>
+                          <p className="text-[9px] sm:text-[10px] text-muted-foreground">Net APY</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-[10px] sm:text-xs">
+                        <div className="p-1.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                          <p className="text-muted-foreground">Earned</p>
+                          <p className="font-medium text-emerald-500">+{stressTestSimulation.totalSupplyEarned.toFixed(2)}</p>
+                        </div>
+                        <div className="p-1.5 rounded bg-red-500/10 border border-red-500/20">
+                          <p className="text-muted-foreground">Cost</p>
+                          <p className="font-medium text-red-500">-{stressTestSimulation.totalBorrowPaid.toFixed(2)}</p>
+                        </div>
+                      </div>
+                      <p className={`text-center font-medium text-sm ${isStressTestGrowing ? "text-emerald-500" : "text-amber-500"}`}>
+                        ${(stressTestSimulation.finalNetPosition * currentPrice).toFixed(0)} USD
+                      </p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+
+
             {/* LTV Comparison Table */}
             <Card className="overflow-hidden">
               <CardHeader className="pb-3 sm:pb-6">
@@ -651,7 +742,18 @@ export function LoopingCalculator() {
                 <CardDescription className="text-xs sm:text-sm">Compare yields across different LTV levels (optimistic path)</CardDescription>
               </CardHeader>
               <CardContent className="p-0 sm:p-6">
-                <LoopsTable data={ltvComparisonData} currentLtv={ltvTarget} />
+                {sdkLoading ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                ) : (
+                  <LoopsTable data={ltvComparisonData} currentLtv={ltvTarget} />
+                )}
               </CardContent>
             </Card>
 
@@ -659,15 +761,27 @@ export function LoopingCalculator() {
             <Card className="overflow-hidden">
               <CardHeader className="pb-3 sm:pb-6">
                 <CardTitle className="text-lg sm:text-xl">Position Evolution (Stress Test)</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">Net position over 1 year with {totalHighBorrowDays} days of high borrow APY</CardDescription>
+                <CardDescription className="text-xs sm:text-sm">
+                  {sdkLoading ? <Skeleton className="h-4 w-64" /> : `Net position over 1 year with ${totalHighBorrowDays} days of high borrow APY`}
+                </CardDescription>
               </CardHeader>
               <CardContent className="px-2 sm:px-6">
-                <ApyChart
-                  simulationPoints={stressTestSimulation.points}
-                  initialAmount={initialAmount}
-                  highBorrowPeriods={highBorrowPeriods}
-                  highBorrowDays={highBorrowDaysPerPeriod}
-                />
+                {sdkLoading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-64 sm:h-80 w-full" />
+                    <div className="flex justify-center gap-4">
+                      <Skeleton className="h-6 w-32" />
+                      <Skeleton className="h-6 w-32" />
+                    </div>
+                  </div>
+                ) : (
+                  <ApyChart
+                    simulationPoints={stressTestSimulation.points}
+                    initialAmount={initialAmount}
+                    highBorrowPeriods={highBorrowPeriods}
+                    highBorrowDays={highBorrowDaysPerPeriod}
+                  />
+                )}
               </CardContent>
             </Card>
           </div>
@@ -731,6 +845,41 @@ export function LoopingCalculator() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Acknowledgments */}
+        <Card className="mt-6 sm:mt-8 border-emerald-500/20 bg-emerald-500/5">
+          <CardHeader className="pb-3 sm:pb-4">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
+              Acknowledgments
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs sm:text-sm text-muted-foreground">
+            <p className="mb-2">
+              Part of the calculations in this tool are based on the excellent work by{" "}
+              <a
+                href="https://x.com/IacobGeorgian"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-emerald-500 hover:text-emerald-400 transition-colors font-medium"
+              >
+                @IacobGeorgian
+              </a>
+              {" "}and their{" "}
+              <a
+                href="https://xlend-looping-simulator-mltgyakcptrb3nv2mrmyjw.streamlit.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-emerald-500 hover:text-emerald-400 transition-colors font-medium inline-flex items-center gap-1"
+              >
+                xLend Looping Simulator <ExternalLink className="w-3 h-3" />
+              </a>
+            </p>
+            <p className="text-[10px] sm:text-xs">
+              Special thanks for the validation and methodology that helped make this calculator more accurate.
+            </p>
+          </CardContent>
+        </Card>
 
         {/* Footer */}
         <div className="mt-6 sm:mt-8 text-center px-4">
