@@ -9,25 +9,136 @@ import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { RefreshCw, AlertTriangle, Info, TrendingUp, Shield, Zap, ExternalLink, HelpCircle, Radio } from "lucide-react"
+import { RefreshCw, Info, TrendingUp, Zap, ExternalLink, HelpCircle, Radio, TrendingDown, Sparkles, AlertTriangle } from "lucide-react"
 import { LoopsTable } from "@/components/loops-table"
 import { ApyChart } from "@/components/apy-chart"
-import { calculateLoopingYield, findMaxSafeLoops, type LoopResult } from "@/lib/calculations"
+import {
+  simulateYear,
+  createDefaultHighBorrowPeriods,
+  generateLtvComparison,
+  type YearSimulationResult,
+} from "@/lib/calculations"
 import { fetchXoxnoMarketData, FALLBACK_DATA, type XoxnoMarketData } from "@/lib/xoxno-api"
+import { useIMask } from "react-imask"
 
 export function LoopingCalculator() {
-  const [initialAmount, setInitialAmount] = useState(1000)
+  const [initialAmount, setInitialAmount] = useState(100)
   const [supplyApy, setSupplyApy] = useState(FALLBACK_DATA.supplyApy)
   const [borrowApy, setBorrowApy] = useState(FALLBACK_DATA.borrowApy)
-  const [ltv, setLtv] = useState(FALLBACK_DATA.ltv)
-  const [lt, setLt] = useState(FALLBACK_DATA.liquidationThreshold)
+  const [ltvTarget, setLtvTarget] = useState(FALLBACK_DATA.ltv) // Default to SDK's optimal LTV
   const [egldPrice, setEgldPrice] = useState<number>(FALLBACK_DATA.price)
-  const [maxSafeLtv, setMaxSafeLtv] = useState(0.92)
-  const [liqBonus, setLiqBonus] = useState(0.15)
-  const [numLoops, setNumLoops] = useState(5)
   const [sdkLoading, setSdkLoading] = useState(true)
   const [dataSource, setDataSource] = useState<"live" | "fallback">("fallback")
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+
+  // High borrow period settings
+  const [highBorrowApy, setHighBorrowApy] = useState(21)
+  const [highBorrowPeriods, setHighBorrowPeriods] = useState(3)
+  const [highBorrowDaysPerPeriod, setHighBorrowDaysPerPeriod] = useState(15)
+
+  // IMask refs for numeric inputs
+  const initialAmountMask = useIMask({
+    mask: Number,
+    scale: 2,
+    thousandsSeparator: '',
+    radix: '.',
+    mapToRadix: ['.'],
+    min: 0,
+  }, {
+    defaultValue: initialAmount.toString(),
+    onAccept: (value) => {
+      const numValue = parseFloat(value as string) || 0
+      setInitialAmount(numValue)
+    }
+  })
+
+  const egldPriceMask = useIMask({
+    mask: Number,
+    scale: 2,
+    thousandsSeparator: '',
+    radix: '.',
+    mapToRadix: ['.'],
+    min: 0,
+  }, {
+    defaultValue: egldPrice.toString(),
+    onAccept: (value) => {
+      const numValue = parseFloat(value as string) || 0
+      setEgldPrice(numValue)
+    }
+  })
+
+  const supplyApyMask = useIMask({
+    mask: Number,
+    scale: 2,
+    thousandsSeparator: '',
+    radix: '.',
+    mapToRadix: ['.'],
+    min: 0,
+  }, {
+    defaultValue: supplyApy.toString(),
+    onAccept: (value) => {
+      const numValue = parseFloat(value as string) || 0
+      setSupplyApy(numValue)
+    }
+  })
+
+  const borrowApyMask = useIMask({
+    mask: Number,
+    scale: 2,
+    thousandsSeparator: '',
+    radix: '.',
+    mapToRadix: ['.'],
+    min: 0,
+  }, {
+    defaultValue: borrowApy.toString(),
+    onAccept: (value) => {
+      const numValue = parseFloat(value as string) || 0
+      setBorrowApy(numValue)
+    }
+  })
+
+  const highBorrowApyMask = useIMask({
+    mask: Number,
+    scale: 2,
+    thousandsSeparator: '',
+    radix: '.',
+    mapToRadix: ['.'],
+    min: 0,
+  }, {
+    defaultValue: highBorrowApy.toString(),
+    onAccept: (value) => {
+      const numValue = parseFloat(value as string) || 0
+      setHighBorrowApy(numValue)
+    }
+  })
+
+  const highBorrowPeriodsMask = useIMask({
+    mask: Number,
+    scale: 0,
+    thousandsSeparator: '',
+    min: 0,
+    max: 12,
+  }, {
+    defaultValue: highBorrowPeriods.toString(),
+    onAccept: (value) => {
+      const numValue = Number.parseInt(value as string, 10) || 0
+      setHighBorrowPeriods(Math.min(12, Math.max(0, numValue)))
+    }
+  })
+
+  const highBorrowDaysMask = useIMask({
+    mask: Number,
+    scale: 0,
+    thousandsSeparator: '',
+    min: 1,
+    max: 60,
+  }, {
+    defaultValue: highBorrowDaysPerPeriod.toString(),
+    onAccept: (value) => {
+      const numValue = Number.parseInt(value as string, 10) || 1
+      setHighBorrowDaysPerPeriod(Math.min(60, Math.max(1, numValue)))
+    }
+  })
 
   const fetchMarketData = async () => {
     setSdkLoading(true)
@@ -36,12 +147,16 @@ export function LoopingCalculator() {
 
       setSupplyApy(data.supplyApy)
       setBorrowApy(data.borrowApy)
-      setLtv(data.ltv)
-      setLt(data.liquidationThreshold)
+      setLtvTarget(data.ltv) // Use SDK's max LTV as optimal default
       setEgldPrice(data.price)
       setDataSource(data.source)
       setLastUpdated(new Date())
-    } catch (error) {
+
+      // Update IMask values
+      supplyApyMask.setValue(data.supplyApy.toString())
+      borrowApyMask.setValue(data.borrowApy.toString())
+      egldPriceMask.setValue(data.price.toString())
+    } catch {
       setDataSource("fallback")
     } finally {
       setSdkLoading(false)
@@ -50,31 +165,65 @@ export function LoopingCalculator() {
 
   useEffect(() => {
     fetchMarketData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const currentPrice = egldPrice
 
-  const loopsData = useMemo(() => {
-    const results: LoopResult[] = []
-    for (let n = 1; n <= numLoops; n++) {
-      results.push(calculateLoopingYield(initialAmount, n, ltv, lt, supplyApy, borrowApy, 0.01, liqBonus, currentPrice))
-    }
-    return results
-  }, [initialAmount, numLoops, ltv, lt, supplyApy, borrowApy, liqBonus, currentPrice])
+  // Build high borrow periods array (matching Python format)
+  const highBorrowPeriodsArray = useMemo(() => {
+    return createDefaultHighBorrowPeriods(
+      highBorrowApy / 100, // Convert to decimal
+      highBorrowPeriods,
+      highBorrowDaysPerPeriod,
+    )
+  }, [highBorrowPeriods, highBorrowDaysPerPeriod, highBorrowApy])
 
-  const maxSafe = useMemo(() => {
-    return findMaxSafeLoops(initialAmount, ltv, lt, supplyApy, borrowApy, maxSafeLtv, 0.01, liqBonus, currentPrice)
-  }, [initialAmount, ltv, lt, supplyApy, borrowApy, maxSafeLtv, liqBonus, currentPrice])
+  // Calculate leverage from LTV
+  const leverage = useMemo(() => {
+    return 1 / (1 - ltvTarget)
+  }, [ltvTarget])
 
-  const chartData = useMemo(() => {
-    const data: LoopResult[] = []
-    for (let n = 1; n <= Math.max(maxSafe.loops + 2, numLoops); n++) {
-      data.push(calculateLoopingYield(initialAmount, n, ltv, lt, supplyApy, borrowApy, 0.01, liqBonus, currentPrice))
-    }
-    return data
-  }, [initialAmount, ltv, lt, supplyApy, borrowApy, maxSafe.loops, numLoops, liqBonus, currentPrice])
+  // Simulate the year with STRESS TEST (high borrow periods)
+  const stressTestSimulation: YearSimulationResult = useMemo(() => {
+    return simulateYear(
+      initialAmount,
+      ltvTarget,
+      supplyApy / 100,
+      borrowApy / 100,
+      highBorrowPeriodsArray,
+      365,
+    )
+  }, [initialAmount, ltvTarget, supplyApy, borrowApy, highBorrowPeriodsArray])
 
-  const hasWarning = loopsData.some((d) => d.netApy < 0) || loopsData.some((d) => d.depegToLiq < 10)
+  // Simulate the year with OPTIMISTIC path (no high borrow, normal APY only)
+  const optimisticSimulation: YearSimulationResult = useMemo(() => {
+    return simulateYear(
+      initialAmount,
+      ltvTarget,
+      supplyApy / 100,
+      borrowApy / 100,
+      [], // No high borrow periods
+      365,
+    )
+  }, [initialAmount, ltvTarget, supplyApy, borrowApy])
+
+  // Generate LTV comparison data for the table
+  const ltvComparisonData = useMemo(() => {
+    const ltvSteps = [0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.92, 0.925]
+    return generateLtvComparison(
+      initialAmount,
+      supplyApy / 100,
+      borrowApy / 100,
+      currentPrice,
+      ltvSteps,
+    )
+  }, [initialAmount, supplyApy, borrowApy, currentPrice])
+
+  // Determine if positions are growing
+  const isOptimisticGrowing = optimisticSimulation.effectiveNetApy > 0
+  const isStressTestGrowing = stressTestSimulation.effectiveNetApy > 0
+  const totalHighBorrowDays = highBorrowPeriods * highBorrowDaysPerPeriod
 
   return (
     <TooltipProvider>
@@ -196,7 +345,7 @@ export function LoopingCalculator() {
             <CardContent className="space-y-4 sm:space-y-6">
               <div className="space-y-2">
                 <Label className="flex items-center gap-2 text-sm">
-                  Initial Amount (xEGLD)
+                  Initial Deposit (xEGLD)
                   <Tooltip>
                     <TooltipTrigger>
                       <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
@@ -207,11 +356,8 @@ export function LoopingCalculator() {
                   </Tooltip>
                 </Label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  value={initialAmount}
-                  onChange={(e) => setInitialAmount(Number(e.target.value) || 0)}
-                  min={0}
+                  ref={initialAmountMask.ref as any}
+                  placeholder="0"
                 />
               </div>
 
@@ -233,10 +379,8 @@ export function LoopingCalculator() {
                   )}
                 </Label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  value={egldPrice}
-                  onChange={(e) => setEgldPrice(Number(e.target.value) || 0)}
+                  ref={egldPriceMask.ref as any}
+                  placeholder="0"
                 />
               </div>
 
@@ -258,22 +402,20 @@ export function LoopingCalculator() {
                   )}
                 </Label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  value={supplyApy}
-                  onChange={(e) => setSupplyApy(Number(e.target.value) || 0)}
+                  ref={supplyApyMask.ref as any}
+                  placeholder="0"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label className="flex items-center gap-2 text-sm">
-                  Borrow APY (%)
+                  Normal Borrow APY (%)
                   <Tooltip>
                     <TooltipTrigger>
                       <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs text-xs sm:text-sm">Current cost to borrow EGLD on xLend</p>
+                      <p className="max-w-xs text-xs sm:text-sm">Normal cost to borrow EGLD on xLend</p>
                     </TooltipContent>
                   </Tooltip>
                   {dataSource === "live" && (
@@ -283,162 +425,249 @@ export function LoopingCalculator() {
                   )}
                 </Label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  value={borrowApy}
-                  onChange={(e) => setBorrowApy(Number(e.target.value) || 0)}
+                  ref={borrowApyMask.ref as any}
+                  placeholder="0"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2">
-                    Loops to Show
+                    Target LTV (%)
                     <Tooltip>
                       <TooltipTrigger>
                         <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p className="max-w-xs text-xs sm:text-sm">Number of loop iterations to display in the table</p>
+                        <p className="max-w-xs text-xs sm:text-sm">
+                          Loan-to-Value ratio. Higher LTV = more leverage.
+                          <br />Default is the max allowed in e-Mode (optimal when supply APY {">"} borrow APY).
+                        </p>
                       </TooltipContent>
                     </Tooltip>
+                    {dataSource === "live" && (
+                      <Badge variant="secondary" className="text-[10px] px-1">
+                        Optimal
+                      </Badge>
+                    )}
                   </span>
-                  <span className="text-sm font-mono text-muted-foreground">{numLoops}</span>
+                  <span className="text-sm font-mono text-muted-foreground">{(ltvTarget * 100).toFixed(1)}% → {leverage.toFixed(2)}×</span>
                 </Label>
-                <Slider value={[numLoops]} onValueChange={([v]) => setNumLoops(v)} min={1} max={10} step={1} />
+                <Slider
+                  value={[ltvTarget * 100]}
+                  onValueChange={([v]) => setLtvTarget(v / 100)}
+                  min={50}
+                  max={97.5}
+                  step={0.5}
+                />
               </div>
 
+              {/* High Borrow Period Settings */}
               <div className="pt-3 sm:pt-4 border-t border-border space-y-3 sm:space-y-4">
-                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Advanced Settings</p>
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-500" />
+                  Stress Test Parameters
+                </p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">
+                  Configure high borrow APY periods to test worst-case scenarios.
+                </p>
+
+                <div className="space-y-2">
+                  <Label className="text-xs flex items-center gap-1">
+                    High Borrow APY (%)
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <HelpCircle className="w-3 h-3 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="max-w-xs text-xs">APY during high borrow periods</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </Label>
+                  <Input
+                    ref={highBorrowApyMask.ref as any}
+                    placeholder="0"
+                  />
+                </div>
 
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
-                    <Label className="text-xs flex items-center gap-1">
-                      LTV (e-Mode)
-                      {dataSource === "live" && (
-                        <Badge variant="secondary" className="text-[10px] px-1">
-                          SDK
-                        </Badge>
-                      )}
-                    </Label>
+                    <Label className="text-xs">Number of Periods</Label>
                     <Input
-                      type="number"
-                      step="0.01"
-                      value={ltv}
-                      onChange={(e) => setLtv(Number(e.target.value) || 0)}
+                      ref={highBorrowPeriodsMask.ref as any}
+                      placeholder="0"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs flex items-center gap-1">
-                      Liq. Threshold
-                      {dataSource === "live" && (
-                        <Badge variant="secondary" className="text-[10px] px-1">
-                          SDK
-                        </Badge>
-                      )}
-                    </Label>
-                    <Input type="number" step="0.01" value={lt} onChange={(e) => setLt(Number(e.target.value) || 0)} />
+                    <Label className="text-xs">Days per Period</Label>
+                    <Input
+                      ref={highBorrowDaysMask.ref as any}
+                      placeholder="1"
+                    />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs">Max Safe LTV</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={maxSafeLtv}
-                      onChange={(e) => setMaxSafeLtv(Number(e.target.value) || 0)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">Liq. Bonus</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={liqBonus}
-                      onChange={(e) => setLiqBonus(Number(e.target.value) || 0)}
-                    />
-                  </div>
-                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Total high borrow days: <span className="font-medium text-foreground">{totalHighBorrowDays}</span> / 365
+                </p>
               </div>
             </CardContent>
           </Card>
 
           {/* Results Panel */}
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-            {/* Warnings */}
-            {hasWarning && (
-              <Alert variant="destructive" className="border-amber-500/50 bg-amber-500/10 text-amber-600">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle className="text-sm sm:text-base">Risk Warning</AlertTitle>
-                <AlertDescription className="text-xs sm:text-sm">
-                  {loopsData.some((d) => d.netApy < 0) && "Some configurations result in negative APY. "}
-                  {loopsData.some((d) => d.depegToLiq < 10) &&
-                    "Low depeg buffer detected (<10%). Consider fewer loops for safety."}
-                </AlertDescription>
-              </Alert>
-            )}
+            {/* Key Insight Alert */}
+            <Alert className="border-cyan-500/30 bg-cyan-500/5">
+              <Info className="h-4 w-4 text-cyan-500" />
+              <AlertTitle className="text-sm sm:text-base text-cyan-600">Key Insight</AlertTitle>
+              <AlertDescription className="text-xs sm:text-sm text-muted-foreground">
+                <strong className="text-foreground">HIGH LTV ≠ HIGH RISK</strong> as long as supply APY {">"} borrow APY.
+                Slow liquidation only happens when borrow APY {">"} supply APY — and even then, it&apos;s a slow, predictable increase in LTV, not sudden liquidation.
+              </AlertDescription>
+            </Alert>
 
-            {/* Max Safe Loops Card */}
-            <Card className="border-emerald-500/30 bg-emerald-500/5">
-              <CardHeader className="pb-3 sm:pb-6">
-                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                  <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
-                  Max Safe Loops: {maxSafe.loops}
-                </CardTitle>
-                <CardDescription className="text-xs sm:text-sm">
-                  Effective LTV stays below {(maxSafeLtv * 100).toFixed(0)}% threshold (assuming no depeg)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
-                  <div className="text-center p-2 sm:p-3 rounded-lg bg-background/50 min-w-0">
-                    <p className="text-base sm:text-lg md:text-2xl font-bold text-foreground truncate">{maxSafe.leverage.toFixed(2)}x</p>
+            {/* Two Simulation Results Side by Side */}
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* Optimistic Path */}
+              <Card className={`border-2 ${isOptimisticGrowing ? "border-emerald-500/30 bg-emerald-500/5" : "border-red-500/30 bg-red-500/5"}`}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
+                    Optimistic Path
+                  </CardTitle>
+                  <CardDescription className="text-[10px] sm:text-xs">
+                    Normal borrow APY ({borrowApy}%) all year
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="text-center p-2 rounded-lg bg-background/50">
+                      <p className={`text-lg sm:text-xl font-bold ${isOptimisticGrowing ? "text-emerald-500" : "text-red-500"}`}>
+                        {optimisticSimulation.finalNetPosition.toFixed(2)}
+                      </p>
+                      <p className="text-[9px] sm:text-[10px] text-muted-foreground">Final (xEGLD)</p>
+                    </div>
+                    <div className="text-center p-2 rounded-lg bg-background/50">
+                      <p className={`text-lg sm:text-xl font-bold ${isOptimisticGrowing ? "text-emerald-500" : "text-red-500"}`}>
+                        {optimisticSimulation.effectiveNetApy >= 0 ? "+" : ""}{optimisticSimulation.effectiveNetApy.toFixed(1)}%
+                      </p>
+                      <p className="text-[9px] sm:text-[10px] text-muted-foreground">Net APY</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[10px] sm:text-xs">
+                    <div className="p-1.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                      <p className="text-muted-foreground">Earned</p>
+                      <p className="font-medium text-emerald-500">+{optimisticSimulation.totalSupplyEarned.toFixed(2)}</p>
+                    </div>
+                    <div className="p-1.5 rounded bg-red-500/10 border border-red-500/20">
+                      <p className="text-muted-foreground">Cost</p>
+                      <p className="font-medium text-red-500">-{optimisticSimulation.totalBorrowPaid.toFixed(2)}</p>
+                    </div>
+                  </div>
+                  <p className="text-center text-emerald-500 font-medium text-sm">
+                    ${(optimisticSimulation.finalNetPosition * currentPrice).toFixed(0)} USD
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Stress Test */}
+              <Card className={`border-2 ${isStressTestGrowing ? "border-emerald-500/30 bg-emerald-500/5" : "border-amber-500/30 bg-amber-500/5"}`}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
+                    Stress Test
+                  </CardTitle>
+                  <CardDescription className="text-[10px] sm:text-xs">
+                    {highBorrowPeriods}×{highBorrowDaysPerPeriod}d of {highBorrowApy}% borrow APY
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="text-center p-2 rounded-lg bg-background/50">
+                      <p className={`text-lg sm:text-xl font-bold ${isStressTestGrowing ? "text-emerald-500" : "text-amber-500"}`}>
+                        {stressTestSimulation.finalNetPosition.toFixed(2)}
+                      </p>
+                      <p className="text-[9px] sm:text-[10px] text-muted-foreground">Final (xEGLD)</p>
+                    </div>
+                    <div className="text-center p-2 rounded-lg bg-background/50">
+                      <p className={`text-lg sm:text-xl font-bold ${isStressTestGrowing ? "text-emerald-500" : "text-amber-500"}`}>
+                        {stressTestSimulation.effectiveNetApy >= 0 ? "+" : ""}{stressTestSimulation.effectiveNetApy.toFixed(1)}%
+                      </p>
+                      <p className="text-[9px] sm:text-[10px] text-muted-foreground">Net APY</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[10px] sm:text-xs">
+                    <div className="p-1.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                      <p className="text-muted-foreground">Earned</p>
+                      <p className="font-medium text-emerald-500">+{stressTestSimulation.totalSupplyEarned.toFixed(2)}</p>
+                    </div>
+                    <div className="p-1.5 rounded bg-red-500/10 border border-red-500/20">
+                      <p className="text-muted-foreground">Cost</p>
+                      <p className="font-medium text-red-500">-{stressTestSimulation.totalBorrowPaid.toFixed(2)}</p>
+                    </div>
+                  </div>
+                  <p className={`text-center font-medium text-sm ${isStressTestGrowing ? "text-emerald-500" : "text-amber-500"}`}>
+                    ${(stressTestSimulation.finalNetPosition * currentPrice).toFixed(0)} USD
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Summary Stats */}
+            <Card className="bg-muted/30">
+              <CardContent className="py-4">
+                <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-center">
+                  <div>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Initial</p>
+                    <p className="text-lg sm:text-xl font-bold">{initialAmount} xEGLD</p>
+                  </div>
+                  <div className="text-muted-foreground">→</div>
+                  <div>
                     <p className="text-[10px] sm:text-xs text-muted-foreground">Leverage</p>
+                    <p className="text-lg sm:text-xl font-bold">{leverage.toFixed(2)}×</p>
                   </div>
-                  <div className="text-center p-2 sm:p-3 rounded-lg bg-background/50 min-w-0">
-                    <p className={`text-base sm:text-lg md:text-2xl font-bold truncate ${maxSafe.netApy >= 0 ? "text-emerald-500" : "text-red-500"}`}>
-                      {maxSafe.netApy.toFixed(2)}%
+                  <div className="text-muted-foreground">→</div>
+                  <div>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Range</p>
+                    <p className="text-lg sm:text-xl font-bold">
+                      <span className={isStressTestGrowing ? "text-emerald-500" : "text-amber-500"}>
+                        {stressTestSimulation.finalNetPosition.toFixed(0)}
+                      </span>
+                      {" - "}
+                      <span className="text-emerald-500">
+                        {optimisticSimulation.finalNetPosition.toFixed(0)}
+                      </span>
+                      {" xEGLD"}
                     </p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">Net APY</p>
-                  </div>
-                  <div className="text-center p-2 sm:p-3 rounded-lg bg-background/50 min-w-0">
-                    <p className="text-base sm:text-lg md:text-2xl font-bold text-foreground truncate">{maxSafe.annualEgld.toFixed(2)}</p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">Annual (EGLD)</p>
-                  </div>
-                  <div className="text-center p-2 sm:p-3 rounded-lg bg-background/50 min-w-0">
-                    <p className="text-base sm:text-lg md:text-2xl font-bold text-emerald-500 truncate">${maxSafe.annualUsd.toFixed(0)}</p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">Annual (USD)</p>
                   </div>
                 </div>
-                <p className="mt-3 sm:mt-4 text-[10px] sm:text-xs text-muted-foreground flex items-start gap-2">
-                  <Info className="w-3 h-3 sm:w-4 sm:h-4 shrink-0 mt-0.5" />
-                  <span>Assumes perfect peg between xEGLD and EGLD. &quot;Depeg to Liq&quot; shows the % price drop needed to
-                  trigger liquidation (HF{"<"}1).</span>
-                </p>
               </CardContent>
             </Card>
 
-            {/* Loops Table */}
+            {/* LTV Comparison Table */}
             <Card className="overflow-hidden">
               <CardHeader className="pb-3 sm:pb-6">
-                <CardTitle className="text-lg sm:text-xl">Loop Comparison</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">Compare yields and risks across different loop counts</CardDescription>
+                <CardTitle className="text-lg sm:text-xl">LTV Comparison</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Compare yields across different LTV levels (optimistic path)</CardDescription>
               </CardHeader>
               <CardContent className="p-0 sm:p-6">
-                <LoopsTable data={loopsData} maxSafeLoops={maxSafe.loops} />
+                <LoopsTable data={ltvComparisonData} currentLtv={ltvTarget} />
               </CardContent>
             </Card>
 
             {/* Chart */}
             <Card className="overflow-hidden">
               <CardHeader className="pb-3 sm:pb-6">
-                <CardTitle className="text-lg sm:text-xl">APY Projection</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">Projected net APY across different loop counts</CardDescription>
+                <CardTitle className="text-lg sm:text-xl">Position Evolution (Stress Test)</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Net position over 1 year with {totalHighBorrowDays} days of high borrow APY</CardDescription>
               </CardHeader>
               <CardContent className="px-2 sm:px-6">
-                <ApyChart data={chartData} maxSafeLoops={maxSafe.loops} maxSafeLtv={maxSafeLtv} />
+                <ApyChart
+                  simulationPoints={stressTestSimulation.points}
+                  initialAmount={initialAmount}
+                  highBorrowPeriods={highBorrowPeriods}
+                  highBorrowDays={highBorrowDaysPerPeriod}
+                />
               </CardContent>
             </Card>
           </div>
@@ -449,22 +678,19 @@ export function LoopingCalculator() {
           <Card>
             <CardHeader className="pb-3 sm:pb-6">
               <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
-                Risks to Consider
+                <Info className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-500" />
+                Why High LTV Works
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-muted-foreground">
               <p>
-                <strong className="text-foreground">Depeg Risk:</strong> If xEGLD loses peg to EGLD, your collateral
-                value drops, risking liquidation.
+                At <strong className="text-foreground">92.5% LTV</strong>, looping creates ~13.3× leverage on your supplied xEGLD.
               </p>
               <p>
-                <strong className="text-foreground">Rate Changes:</strong> Borrow APY can spike during high demand,
-                reducing or eliminating profits.
+                Your supply grows much faster than your debt — even with a few &quot;bad&quot; periods of high borrow.
               </p>
               <p>
-                <strong className="text-foreground">Slippage:</strong> Large swaps may incur slippage, affecting actual
-                yields.
+                The net curve continues upward as long as supply APY {">"} borrow APY on average.
               </p>
             </CardContent>
           </Card>
@@ -472,7 +698,27 @@ export function LoopingCalculator() {
           <Card>
             <CardHeader className="pb-3 sm:pb-6">
               <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                <Info className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-500" />
+                <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
+                When to Worry
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-muted-foreground">
+              <p>
+                <strong className="text-foreground">Slow liquidation</strong> only happens when borrow APY {">"} supply APY consistently.
+              </p>
+              <p>
+                Even then, it&apos;s a slow, predictable increase in LTV — not a sudden liquidation.
+              </p>
+              <p>
+                It&apos;s not rational to borrow at extremely high interest → demand drops → APYs normalize.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3 sm:pb-6">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
                 How It Works
               </CardTitle>
             </CardHeader>
@@ -480,25 +726,8 @@ export function LoopingCalculator() {
               <p>1. Supply xEGLD as collateral</p>
               <p>2. Borrow EGLD up to LTV limit</p>
               <p>3. Swap borrowed EGLD to xEGLD</p>
-              <p>4. Supply new xEGLD, repeat N times</p>
-              <p className="text-xs mt-2">Each loop increases leverage and yield, but also risk.</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3 sm:pb-6">
-              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
-                Safety Tips
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-muted-foreground">
-              <p>
-                • Start with <strong className="text-foreground">1-2 loops</strong> for {"<"}20% risk
-              </p>
-              <p>• Monitor your Health Factor daily</p>
-              <p>• Keep buffer for rate spikes</p>
-              <p>• Understand liquidation mechanics</p>
+              <p>4. Supply new xEGLD, repeat until target LTV</p>
+              <p className="text-xs mt-2">Higher LTV = more leverage = amplified spread between supply and borrow APY.</p>
             </CardContent>
           </Card>
         </div>

@@ -3,127 +3,239 @@ export interface LoopResult {
   netApy: number
   leverage: number
   effLtv: number
-  depegToLiq: number
-  liqBonus: number
   annualEgld: number
   annualUsd: number
+  finalPosition: number // Final net position in eGLD after 1 year
 }
 
-export interface MaxSafeResult extends LoopResult {}
+export interface SimulationPoint {
+  day: number
+  netPosition: number // Net position in eGLD (collateral - debt)
+  collateral: number
+  debt: number
+}
+
+export interface YearSimulationResult {
+  points: SimulationPoint[]
+  finalNetPosition: number
+  effectiveNetApy: number
+  totalSupplyEarned: number
+  totalBorrowPaid: number
+  leverage: number
+  effLtv: number
+}
+
+export interface HighBorrowPeriod {
+  startDay: number
+  endDay: number
+  borrowApy: number
+}
 
 /**
- * Calculates Net APY, leverage, effective LTV, depeg to liquidation percentage, and annual gains for N loops.
- * Replicates the Python script logic exactly.
+ * Converts APR to daily rate using compound interest formula
+ * This matches the Python implementation: (1 + apr) ** (1/365) - 1
+ */
+function aprToDaily(apr: number): number {
+  return Math.pow(1 + apr, 1 / 365) - 1
+}
+
+/**
+ * Calculates theoretical leverage and position for a given LTV target
+ * Uses the formula: leverage = 1 / (1 - ltv)
+ * This matches the Python implementation exactly
+ */
+export function calculateTheoreticalPosition(
+  initialAmount: number,
+  ltvTarget: number,
+): { supply: number; borrow: number; leverage: number } {
+  const leverage = 1 / (1 - ltvTarget)
+  const borrowMultiple = leverage - 1
+
+  const supply = initialAmount * leverage
+  const borrow = initialAmount * borrowMultiple
+
+  return { supply, borrow, leverage }
+}
+
+/**
+ * Simulates position evolution over N days with variable borrow APY periods
+ * This matches the Python simulation_engine.py exactly
+ */
+export function simulateYear(
+  initialAmount: number,
+  ltvTarget: number,
+  supplyApr: number, // as decimal, e.g., 0.165 for 16.5%
+  borrowAprNormal: number, // as decimal, e.g., 0.12 for 12%
+  highBorrowPeriods: HighBorrowPeriod[] = [],
+  days: number = 365,
+): YearSimulationResult {
+  // Calculate theoretical leverage (matches Python exactly)
+  const leverage = 1 / (1 - ltvTarget)
+  const borrowMultiple = leverage - 1
+
+  // Convert APR to daily rates (matches Python exactly)
+  const supplyDaily = aprToDaily(supplyApr)
+  const borrowDailyNormal = aprToDaily(borrowAprNormal)
+
+  // Initialize supply and borrow (matches Python exactly)
+  let supply = initialAmount * leverage
+  let borrow = initialAmount * borrowMultiple
+
+  const points: SimulationPoint[] = []
+  let totalSupplyEarned = 0
+  let totalBorrowPaid = 0
+
+  // Record initial state
+  points.push({
+    day: 0,
+    netPosition: supply - borrow,
+    collateral: supply,
+    debt: borrow,
+  })
+
+  // Simulate each day (matches Python loop exactly)
+  for (let day = 0; day < days; day++) {
+    // Determine borrow rate for this day
+    let dailyBorrowRate = borrowDailyNormal
+
+    for (const period of highBorrowPeriods) {
+      if (day >= period.startDay && day <= period.endDay) {
+        dailyBorrowRate = aprToDaily(period.borrowApy)
+        break
+      }
+    }
+
+    // Track interest before applying
+    const supplyBefore = supply
+    const borrowBefore = borrow
+
+    // Apply daily interest (matches Python exactly)
+    supply *= (1 + supplyDaily)
+    borrow *= (1 + dailyBorrowRate)
+
+    totalSupplyEarned += supply - supplyBefore
+    totalBorrowPaid += borrow - borrowBefore
+
+    // Record state every 7 days or on last day
+    if ((day + 1) % 7 === 0 || day === days - 1) {
+      points.push({
+        day: day + 1,
+        netPosition: supply - borrow,
+        collateral: supply,
+        debt: borrow,
+      })
+    }
+  }
+
+  const finalNetPosition = supply - borrow
+  const effectiveNetApy = (finalNetPosition / initialAmount - 1) * 100
+
+  return {
+    points,
+    finalNetPosition,
+    effectiveNetApy,
+    totalSupplyEarned,
+    totalBorrowPaid,
+    leverage,
+    effLtv: ltvTarget,
+  }
+}
+
+/**
+ * Creates high borrow periods distributed through the year
+ * Matches Python logic: periods are placed at roughly even intervals
+ * Python defaults: [(30,44), (120,134), (250,264)] for 3 periods of 15 days
+ */
+export function createDefaultHighBorrowPeriods(
+  highBorrowApr: number,
+  numPeriods: number = 3,
+  daysPerPeriod: number = 15,
+): HighBorrowPeriod[] {
+  if (numPeriods === 0 || daysPerPeriod === 0) {
+    return []
+  }
+
+  const periods: HighBorrowPeriod[] = []
+
+  // Match Python's default spacing pattern
+  // For 3 periods: starts at ~day 30, 120, 250
+  if (numPeriods === 3) {
+    const starts = [30, 120, 250]
+    for (let i = 0; i < 3; i++) {
+      periods.push({
+        startDay: starts[i],
+        endDay: starts[i] + daysPerPeriod - 1,
+        borrowApy: highBorrowApr,
+      })
+    }
+  } else {
+    // For other configurations, distribute evenly
+    const spacing = Math.floor(365 / (numPeriods + 1))
+    for (let i = 0; i < numPeriods; i++) {
+      const startDay = spacing * (i + 1) - Math.floor(daysPerPeriod / 2)
+      periods.push({
+        startDay: Math.max(0, startDay),
+        endDay: Math.min(364, startDay + daysPerPeriod - 1),
+        borrowApy: highBorrowApr,
+      })
+    }
+  }
+
+  return periods
+}
+
+/**
+ * Calculates Net APY, leverage, and annual gains for display in the table
+ * Uses theoretical leverage and proper compound interest
  */
 export function calculateLoopingYield(
   initialAmount: number,
-  numLoops: number,
-  ltv: number,
-  lt: number,
-  supplyApy: number,
-  borrowApy: number,
-  minBorrow = 0.01,
-  liqBonus = 0.15,
-  egldPrice = 35,
+  ltvTarget: number,
+  supplyApr: number, // as decimal
+  borrowApr: number, // as decimal
+  egldPrice: number = 35,
 ): LoopResult {
-  let collateral = initialAmount
-  let debt = 0.0
-  let actualLoops = 0
+  const leverage = 1 / (1 - ltvTarget)
+  const borrowMultiple = leverage - 1
 
-  for (let i = 0; i < numLoops; i++) {
-    const availableBorrow = ltv * collateral - debt
-    if (availableBorrow < minBorrow) {
-      break
-    }
-    const borrowed = availableBorrow
-    debt += borrowed
-    collateral += borrowed // Assume swap to xEGLD and supply
-    actualLoops++
+  // Convert APR to daily rates
+  const supplyDaily = aprToDaily(supplyApr)
+  const borrowDaily = aprToDaily(borrowApr)
+
+  // Initialize
+  let supply = initialAmount * leverage
+  let borrow = initialAmount * borrowMultiple
+
+  // Compound for 365 days
+  for (let day = 0; day < 365; day++) {
+    supply *= (1 + supplyDaily)
+    borrow *= (1 + borrowDaily)
   }
 
-  // Monthly compounding for precise annual yields
-  const months = 12
-  const grossRateMonthly = supplyApy / 100 / months
-  const borrowRateMonthly = borrowApy / 100 / months
-  const grossComp = collateral * (Math.pow(1 + grossRateMonthly, months) - 1)
-  const borrowComp = debt * (Math.pow(1 + borrowRateMonthly, months) - 1)
-  const netYield = grossComp - borrowComp
+  const finalPosition = supply - borrow
+  const netYield = finalPosition - initialAmount
   const netApy = (netYield / initialAmount) * 100
-  const leverage = collateral / initialAmount
-  const effLtv = collateral > 0 ? debt / collateral : 0
-  const depegToLiq = Math.max(0, (1 - effLtv / lt) * 100)
-  const annualEgld = initialAmount * (netApy / 100)
-  const annualUsd = annualEgld * egldPrice
 
   return {
-    loops: actualLoops,
+    loops: Math.round(Math.log(leverage) / Math.log(1 / (1 - ltvTarget)) * 10) / 10, // Approximate loops
     netApy,
     leverage,
-    effLtv,
-    depegToLiq,
-    liqBonus,
-    annualEgld,
-    annualUsd,
+    effLtv: ltvTarget,
+    annualEgld: netYield,
+    annualUsd: netYield * egldPrice,
+    finalPosition,
   }
 }
 
 /**
- * Finds the maximum safe loops where effective LTV stays below max_safe_ltv.
- * Replicates the Python script logic exactly.
+ * Generates results for different LTV levels for the comparison table
  */
-export function findMaxSafeLoops(
+export function generateLtvComparison(
   initialAmount: number,
-  ltv: number,
-  lt: number,
-  supplyApy: number,
-  borrowApy: number,
-  maxSafeLtv: number,
-  minBorrow = 0.01,
-  liqBonus = 0.15,
-  egldPrice = 35,
-): MaxSafeResult {
-  let collateral = initialAmount
-  let debt = 0.0
-  let loops = 0
-
-  while (true) {
-    const availableBorrow = ltv * collateral - debt
-    if (availableBorrow < minBorrow) {
-      break
-    }
-    const nextDebt = debt + availableBorrow
-    const nextCollateral = collateral + availableBorrow
-    const nextLtv = nextDebt / nextCollateral
-    if (nextLtv > maxSafeLtv) {
-      break
-    }
-    debt = nextDebt
-    collateral = nextCollateral
-    loops++
-  }
-
-  // Monthly compounding for yields
-  const months = 12
-  const grossRateMonthly = supplyApy / 100 / months
-  const borrowRateMonthly = borrowApy / 100 / months
-  const grossComp = collateral * (Math.pow(1 + grossRateMonthly, months) - 1)
-  const borrowComp = debt * (Math.pow(1 + borrowRateMonthly, months) - 1)
-  const netYield = grossComp - borrowComp
-  const netApy = (netYield / initialAmount) * 100
-  const leverage = collateral / initialAmount
-  const effLtv = collateral > 0 ? debt / collateral : 0
-  const depegToLiq = Math.max(0, (1 - effLtv / lt) * 100)
-  const annualEgld = initialAmount * (netApy / 100)
-  const annualUsd = annualEgld * egldPrice
-
-  return {
-    loops,
-    netApy,
-    leverage,
-    effLtv,
-    depegToLiq,
-    liqBonus,
-    annualEgld,
-    annualUsd,
-  }
+  supplyApr: number,
+  borrowApr: number,
+  egldPrice: number,
+  ltvSteps: number[] = [0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.92, 0.925],
+): LoopResult[] {
+  return ltvSteps.map(ltv => calculateLoopingYield(initialAmount, ltv, supplyApr, borrowApr, egldPrice))
 }

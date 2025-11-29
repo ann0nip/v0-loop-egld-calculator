@@ -1,97 +1,159 @@
 "use client"
 
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
-  ReferenceArea,
 } from "recharts"
-import type { LoopResult } from "@/lib/calculations"
+import type { SimulationPoint } from "@/lib/calculations"
 
 interface ApyChartProps {
-  data: LoopResult[]
-  maxSafeLoops: number
-  maxSafeLtv: number
+  simulationPoints: SimulationPoint[]
+  initialAmount: number
+  highBorrowPeriods: number
+  highBorrowDays: number
 }
 
-export function ApyChart({ data, maxSafeLoops }: ApyChartProps) {
-  const chartData = data.map((d) => ({
-    loops: d.loops,
-    netApy: Number(d.netApy.toFixed(2)),
-    effLtv: Number((d.effLtv * 100).toFixed(2)),
-    depeg: Number(d.depegToLiq.toFixed(2)),
+export function ApyChart({ simulationPoints, initialAmount, highBorrowPeriods, highBorrowDays }: ApyChartProps) {
+  const chartData = simulationPoints.map((p) => ({
+    day: p.day,
+    netPosition: Number(p.netPosition.toFixed(2)),
+    collateral: Number(p.collateral.toFixed(2)),
+    debt: Number(p.debt.toFixed(2)),
   }))
 
-  const maxLoops = chartData.length
+  // Calculate min/max for Y axis
+  const netPositions = chartData.map(d => d.netPosition)
+  const minNet = Math.min(...netPositions)
+  const maxNet = Math.max(...netPositions)
+  const padding = (maxNet - minNet) * 0.1
+  const yMin = Math.floor(minNet - padding)
+  const yMax = Math.ceil(maxNet + padding)
+
+  // Determine if position is growing overall
+  const isGrowing = chartData.length > 1 && chartData[chartData.length - 1].netPosition > chartData[0].netPosition
+
+  // Calculate high borrow period markers
+  const totalHighDays = highBorrowPeriods * highBorrowDays
+  const periodSpacing = highBorrowPeriods > 0 ? Math.floor(365 / highBorrowPeriods) : 0
+  const highBorrowMarkers: { start: number; end: number }[] = []
+
+  if (highBorrowPeriods > 0 && highBorrowDays > 0) {
+    let currentDay = 0
+    for (let i = 0; i < highBorrowPeriods; i++) {
+      const startDay = currentDay + Math.floor(periodSpacing / 2) - Math.floor(highBorrowDays / 2)
+      highBorrowMarkers.push({
+        start: Math.max(0, startDay),
+        end: Math.min(365, startDay + highBorrowDays),
+      })
+      currentDay += periodSpacing
+    }
+  }
 
   return (
-    <div className="h-[250px] sm:h-[300px] w-full overflow-hidden">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData} margin={{ top: 10, right: 5, left: -20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+    <div className="space-y-2">
+      <div className="h-[250px] sm:h-[300px] w-full overflow-hidden">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={chartData} margin={{ top: 10, right: 5, left: -10, bottom: 5 }}>
+            <defs>
+              <linearGradient id="netPositionGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop
+                  offset="5%"
+                  stopColor={isGrowing ? "rgb(16, 185, 129)" : "rgb(239, 68, 68)"}
+                  stopOpacity={0.3}
+                />
+                <stop
+                  offset="95%"
+                  stopColor={isGrowing ? "rgb(16, 185, 129)" : "rgb(239, 68, 68)"}
+                  stopOpacity={0}
+                />
+              </linearGradient>
+            </defs>
 
-          {/* Risk zones */}
-          <ReferenceArea x1={1} x2={maxSafeLoops} fill="rgb(16, 185, 129)" fillOpacity={0.1} />
-          <ReferenceArea x1={maxSafeLoops} x2={maxLoops} fill="rgb(239, 68, 68)" fillOpacity={0.1} />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
 
-          <XAxis
-            dataKey="loops"
-            tick={{ fill: "hsl(var(--foreground))", fontSize: 10 }}
-            axisLine={{ stroke: "hsl(var(--border))" }}
-            tickLine={{ stroke: "hsl(var(--border))" }}
-            label={{ value: "Loops", position: "insideBottom", offset: -5, fill: "hsl(var(--foreground))", fontSize: 11 }}
-          />
-          <YAxis
-            tick={{ fill: "hsl(var(--foreground))", fontSize: 10 }}
-            axisLine={{ stroke: "hsl(var(--border))" }}
-            tickLine={{ stroke: "hsl(var(--border))" }}
-            label={{ value: "Net APY (%)", angle: -90, position: "insideLeft", fill: "hsl(var(--foreground))", fontSize: 11 }}
-          />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "hsl(var(--card))",
-              border: "1px solid hsl(var(--border))",
-              borderRadius: "8px",
-              color: "hsl(var(--foreground))",
-              fontSize: "12px",
-            }}
-            formatter={(value: number, name: string) => {
-              if (name === "netApy") return [`${value.toFixed(2)}%`, "Net APY"]
-              if (name === "effLtv") return [`${value.toFixed(2)}%`, "Eff LTV"]
-              if (name === "depeg") return [`${value.toFixed(2)}%`, "Depeg to Liq"]
-              return [value, name]
-            }}
-            labelFormatter={(label) => `Loop ${label}`}
-            labelStyle={{ color: "hsl(var(--foreground))", fontSize: "12px" }}
-          />
+            {/* Initial amount reference line */}
+            <ReferenceLine
+              y={initialAmount}
+              stroke="hsl(var(--muted-foreground))"
+              strokeDasharray="5 5"
+              label={{
+                value: `Initial: ${initialAmount}`,
+                fill: "hsl(var(--muted-foreground))",
+                fontSize: 10,
+                position: "right"
+              }}
+            />
 
-          <ReferenceLine
-            x={maxSafeLoops}
-            stroke="rgb(16, 185, 129)"
-            strokeDasharray="5 5"
-            label={{
-              value: "Max Safe",
-              fill: "rgb(16, 185, 129)",
-              fontSize: 10,
-              position: "top"
-            }}
-          />
+            <XAxis
+              dataKey="day"
+              tick={{ fill: "hsl(var(--foreground))", fontSize: 10 }}
+              axisLine={{ stroke: "hsl(var(--border))" }}
+              tickLine={{ stroke: "hsl(var(--border))" }}
+              label={{ value: "Days", position: "insideBottom", offset: -5, fill: "hsl(var(--foreground))", fontSize: 11 }}
+              tickFormatter={(value) => value === 0 ? "0" : value === 365 ? "365" : ""}
+              ticks={[0, 91, 182, 273, 365]}
+            />
+            <YAxis
+              domain={[yMin, yMax]}
+              tick={{ fill: "hsl(var(--foreground))", fontSize: 10 }}
+              axisLine={{ stroke: "hsl(var(--border))" }}
+              tickLine={{ stroke: "hsl(var(--border))" }}
+              label={{ value: "Net Position (xEGLD)", angle: -90, position: "insideLeft", fill: "hsl(var(--foreground))", fontSize: 10, dx: 10 }}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: "8px",
+                color: "hsl(var(--foreground))",
+                fontSize: "12px",
+              }}
+              formatter={(value: number, name: string) => {
+                if (name === "netPosition") return [`${value.toFixed(2)} xEGLD`, "Net Position"]
+                if (name === "collateral") return [`${value.toFixed(2)} xEGLD`, "Collateral"]
+                if (name === "debt") return [`${value.toFixed(2)} EGLD`, "Debt"]
+                return [value, name]
+              }}
+              labelFormatter={(label) => `Day ${label}`}
+              labelStyle={{ color: "hsl(var(--foreground))", fontSize: "12px" }}
+            />
 
-          <Line
-            type="monotone"
-            dataKey="netApy"
-            stroke="rgb(16, 185, 129)"
-            strokeWidth={2}
-            dot={{ fill: "rgb(16, 185, 129)", strokeWidth: 2, r: 3 }}
-            activeDot={{ r: 5, fill: "rgb(16, 185, 129)" }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+            <Area
+              type="monotone"
+              dataKey="netPosition"
+              stroke={isGrowing ? "rgb(16, 185, 129)" : "rgb(239, 68, 68)"}
+              strokeWidth={2}
+              fill="url(#netPositionGradient)"
+              dot={false}
+              activeDot={{ r: 4, fill: isGrowing ? "rgb(16, 185, 129)" : "rgb(239, 68, 68)" }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap items-center justify-center gap-4 text-[10px] sm:text-xs text-muted-foreground">
+        <div className="flex items-center gap-1">
+          <div className={`w-3 h-0.5 ${isGrowing ? "bg-emerald-500" : "bg-red-500"}`} />
+          <span>Net Position</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-0.5 bg-muted-foreground" style={{ backgroundImage: "repeating-linear-gradient(90deg, transparent, transparent 2px, currentColor 2px, currentColor 4px)" }} />
+          <span>Initial Amount</span>
+        </div>
+        {totalHighDays > 0 && (
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-2 bg-amber-500/30 rounded-sm" />
+            <span>{highBorrowPeriods} high borrow periods ({totalHighDays} days)</span>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
