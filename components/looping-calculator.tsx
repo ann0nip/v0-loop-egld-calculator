@@ -262,6 +262,14 @@ export function LoopingCalculator() {
   // Generate LTV comparison data for the table
   const ltvComparisonData = useMemo(() => {
     const ltvSteps = [0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.92, 0.925]
+
+    // Add current LTV if it's not already in the list
+    if (!ltvSteps.includes(ltvTarget)) {
+      ltvSteps.push(ltvTarget)
+      // Sort to maintain order
+      ltvSteps.sort((a, b) => a - b)
+    }
+
     return generateLtvComparison(
       initialAmount,
       supplyApy / 100,
@@ -269,7 +277,7 @@ export function LoopingCalculator() {
       currentPrice,
       ltvSteps,
     )
-  }, [initialAmount, supplyApy, borrowApy, currentPrice])
+  }, [initialAmount, supplyApy, borrowApy, currentPrice, ltvTarget])
 
   // Determine if positions are growing
   const isOptimisticGrowing = optimisticSimulation.effectiveNetApy > 0
