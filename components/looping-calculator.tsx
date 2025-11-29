@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -32,6 +32,7 @@ export function LoopingCalculator() {
   const [dataSource, setDataSource] = useState<"live" | "fallback">("fallback")
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [loadError, setLoadError] = useState(false)
+  const hasSyncedMasks = useRef(false)
 
   // High borrow period settings
   const [highBorrowApy, setHighBorrowApy] = useState(21)
@@ -156,7 +157,7 @@ export function LoopingCalculator() {
     }
   )
 
-  const fetchMarketData = async () => {
+  const fetchMarketData = useCallback(async () => {
     setSdkLoading(true)
     setLoadError(false)
     try {
@@ -181,16 +182,15 @@ export function LoopingCalculator() {
     } finally {
       setSdkLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchMarketData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [fetchMarketData])
 
   // Sync IMask values ONLY when SDK finishes loading (one-time sync)
   useEffect(() => {
-    if (!sdkLoading && egldPrice > 0) {
+    if (!sdkLoading && egldPrice > 0 && !hasSyncedMasks.current) {
       // Only set values from SDK data, don't create a loop
       initialAmountMask.setValue(initialAmount.toString())
       egldPriceMask.setValue(egldPrice.toString())
@@ -199,9 +199,25 @@ export function LoopingCalculator() {
       highBorrowApyMask.setValue(highBorrowApy.toString())
       highBorrowPeriodsMask.setValue(highBorrowPeriods.toString())
       highBorrowDaysMask.setValue(highBorrowDaysPerPeriod.toString())
+      hasSyncedMasks.current = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sdkLoading])
+  }, [
+    sdkLoading,
+    egldPrice,
+    initialAmount,
+    supplyApy,
+    borrowApy,
+    highBorrowApy,
+    highBorrowPeriods,
+    highBorrowDaysPerPeriod,
+    initialAmountMask,
+    egldPriceMask,
+    supplyApyMask,
+    borrowApyMask,
+    highBorrowApyMask,
+    highBorrowPeriodsMask,
+    highBorrowDaysMask,
+  ])
 
   const currentPrice = egldPrice
 
