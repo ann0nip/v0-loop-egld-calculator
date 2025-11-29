@@ -384,16 +384,18 @@ export function LoopingCalculator() {
         </Card>
 
         <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Input Panel */}
-          <Card className="lg:col-span-1">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
-                Configuration
-              </CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Adjust parameters to simulate your strategy</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 sm:space-y-6">
+          {/* Left Column: Configuration + Educational Cards */}
+          <div className="lg:col-span-1 space-y-4 sm:space-y-6">
+            {/* Input Panel */}
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                  <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
+                  Configuration
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Adjust parameters to simulate your strategy</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 sm:space-y-6">
               {loadError && (
                 <Alert className="border-amber-500/50 bg-amber-500/10">
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
@@ -585,7 +587,67 @@ export function LoopingCalculator() {
                 </p>
               </div>
             </CardContent>
-          </Card>
+            </Card>
+
+            {/* Educational Cards - Only visible on desktop */}
+            <div className="hidden lg:grid lg:grid-cols-1 gap-4">
+              <Card>
+                <CardHeader className="pb-3 sm:pb-6">
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                    <Info className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-500" />
+                    Why High LTV Works
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-muted-foreground">
+                  <p>
+                    At <strong className="text-foreground">92.5% LTV</strong>, looping creates ~13.3× leverage on your supplied xEGLD.
+                  </p>
+                  <p>
+                    Your supply grows much faster than your debt — even with a few &quot;bad&quot; periods of high borrow.
+                  </p>
+                  <p>
+                    The net curve continues upward as long as supply APY {">"} borrow APY on average.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3 sm:pb-6">
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                    <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
+                    When to Worry
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-muted-foreground">
+                  <p>
+                    <strong className="text-foreground">Slow liquidation</strong> only happens when borrow APY {">"} supply APY consistently.
+                  </p>
+                  <p>
+                    Even then, it&apos;s a slow, predictable increase in LTV — not a sudden liquidation.
+                  </p>
+                  <p>
+                    It&apos;s not rational to borrow at extremely high interest → demand drops → APYs normalize.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3 sm:pb-6">
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                    <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
+                    How It Works
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-muted-foreground">
+                  <p>1. Supply xEGLD as collateral</p>
+                  <p>2. Borrow EGLD up to LTV limit</p>
+                  <p>3. Swap borrowed EGLD to xEGLD</p>
+                  <p>4. Supply new xEGLD, repeat until target LTV</p>
+                  <p className="text-xs mt-2">Higher LTV = more leverage = amplified spread between supply and borrow APY.</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
 
           {/* Results Panel */}
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">
@@ -600,7 +662,7 @@ export function LoopingCalculator() {
             </Alert>
 
             {/* Summary Stats */}
-            <Card className="bg-muted/30">
+            <Card className="bg-muted/30 border-2 border-slate-100/30">
               <CardContent className="py-4">
                 <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-center">
                   <div>
@@ -803,8 +865,8 @@ export function LoopingCalculator() {
           </div>
         </div>
 
-        {/* Educational Section */}
-        <div className="mt-6 sm:mt-8 grid md:grid-cols-3 gap-4 sm:gap-6">
+        {/* Educational Section - Only visible on mobile/tablet */}
+        <div className="mt-6 sm:mt-8 grid md:grid-cols-3 gap-4 sm:gap-6 lg:hidden">
           <Card>
             <CardHeader className="pb-3 sm:pb-6">
               <CardTitle className="text-base sm:text-lg flex items-center gap-2">
