@@ -752,7 +752,7 @@ export function LoopingCalculator() {
                                 ? "bg-red-500/10 border-red-500/20"
                                 : "bg-emerald-500/10 border-emerald-500/20"
                             }`}>
-                              <p className="text-muted-foreground">Net Yield</p>
+                              <p className="text-muted-foreground">Annual Net Yield</p>
                               <p className={`font-medium ${isNegative ? "text-red-500" : "text-emerald-500"}`}>
                                 {netYield >= 0 ? "+" : ""}{netYield.toFixed(2)}
                               </p>
@@ -774,10 +774,10 @@ export function LoopingCalculator() {
                         return (
                           <div className="text-center">
                             <p className={`font-medium text-sm ${isNegative ? "text-red-500" : "text-emerald-500"}`}>
-                              ${netYield >= 0 ? "+" : ""}{netYieldUsd.toFixed(2)} USD
+                              {netYield >= 0 ? "+" : "-"}${Math.abs(netYieldUsd).toFixed(2)} USD
                             </p>
                             <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
-                              Net Yield Value
+                              Annual Net Yield Value
                             </p>
                           </div>
                         )
@@ -837,7 +837,7 @@ export function LoopingCalculator() {
                                  ? "bg-red-500/10 border-red-500/20"
                                  : "bg-emerald-500/10 border-emerald-500/20"
                              }`}>
-                               <p className="text-muted-foreground">Net Yield</p>
+                               <p className="text-muted-foreground">Annual Net Yield</p>
                                <p className={`font-medium ${isNegative ? "text-red-500" : "text-emerald-500"}`}>
                                  {netYield >= 0 ? "+" : ""}{netYield.toFixed(2)}
                                </p>
@@ -859,10 +859,10 @@ export function LoopingCalculator() {
                         return (
                           <div className="text-center">
                             <p className={`font-medium text-sm ${isNegative ? "text-red-500" : "text-emerald-500"}`}>
-                              ${netYield >= 0 ? "+" : ""}{netYieldUsd.toFixed(2)} USD
+                              {netYield >= 0 ? "+" : "-"}${Math.abs(netYieldUsd).toFixed(2)} USD
                             </p>
                             <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
-                              Net Yield Value
+                              Annual Net Yield Value
                             </p>
                           </div>
                         )

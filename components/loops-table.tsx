@@ -66,7 +66,7 @@ export function LoopsTable({ data, currentLtv }: LoopsTableProps) {
                   "font-medium text-[10px] sm:text-sm py-2 sm:py-4 px-2 sm:px-4 whitespace-nowrap",
                   isPositive ? "text-emerald-500" : "text-red-500"
                 )}>
-                  {row.annualUsd >= 0 ? "+" : ""}${row.annualUsd.toFixed(0)}
+                  {row.annualUsd >= 0 ? "+" : "-"}${Math.abs(row.annualUsd).toFixed(0)}
                 </TableCell>
               </TableRow>
             )
