@@ -743,18 +743,45 @@ export function LoopingCalculator() {
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-[10px] sm:text-xs">
-                        <div className="p-1.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-                          <p className="text-muted-foreground">Earned</p>
-                          <p className="font-medium text-emerald-500">+{optimisticSimulation.totalSupplyEarned.toFixed(2)}</p>
-                        </div>
-                        <div className="p-1.5 rounded bg-red-500/10 border border-red-500/20">
-                          <p className="text-muted-foreground">Cost</p>
-                          <p className="font-medium text-red-500">-{optimisticSimulation.totalBorrowPaid.toFixed(2)}</p>
+                        {(() => {
+                          const netYield = optimisticSimulation.finalNetPosition - initialAmount
+                          const isNegative = netYield < 0
+                          return (
+                            <div className={`p-1.5 rounded border ${
+                              isNegative
+                                ? "bg-red-500/10 border-red-500/20"
+                                : "bg-emerald-500/10 border-emerald-500/20"
+                            }`}>
+                              <p className="text-muted-foreground">Net Yield</p>
+                              <p className={`font-medium ${isNegative ? "text-red-500" : "text-emerald-500"}`}>
+                                {netYield >= 0 ? "+" : ""}{netYield.toFixed(2)}
+                              </p>
+                            </div>
+                          )
+                        })()}
+                        <div className="p-1.5 rounded bg-slate-500/10 border border-slate-500/20">
+                          <p className="text-muted-foreground mb-1">Breakdown</p>
+                          <div className="flex justify-center items-center gap-1.5">
+                            <p className="font-medium text-emerald-500 text-[10px] sm:text-xs">+{optimisticSimulation.totalSupplyEarned.toFixed(2)}</p>
+                            <p className="font-medium text-red-500 text-[10px] sm:text-xs">-{optimisticSimulation.totalBorrowPaid.toFixed(2)}</p>
+                          </div>
                         </div>
                       </div>
-                      <p className="text-center text-emerald-500 font-medium text-sm">
-                        ${(optimisticSimulation.finalNetPosition * currentPrice).toFixed(0)} USD
-                      </p>
+                      {(() => {
+                        const netYield = optimisticSimulation.finalNetPosition - initialAmount
+                        const netYieldUsd = netYield * currentPrice
+                        const isNegative = netYield < 0
+                        return (
+                          <div className="text-center">
+                            <p className={`font-medium text-sm ${isNegative ? "text-red-500" : "text-emerald-500"}`}>
+                              ${netYield >= 0 ? "+" : ""}{netYieldUsd.toFixed(2)} USD
+                            </p>
+                            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
+                              Net Yield Value
+                            </p>
+                          </div>
+                        )
+                      })()}
                     </>
                   )}
                 </CardContent>
@@ -800,19 +827,46 @@ export function LoopingCalculator() {
                           <p className="text-[9px] sm:text-[10px] text-muted-foreground">Net APY</p>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-[10px] sm:text-xs">
-                        <div className="p-1.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-                          <p className="text-muted-foreground">Earned</p>
-                          <p className="font-medium text-emerald-500">+{stressTestSimulation.totalSupplyEarned.toFixed(2)}</p>
-                        </div>
-                        <div className="p-1.5 rounded bg-red-500/10 border border-red-500/20">
-                          <p className="text-muted-foreground">Cost</p>
-                          <p className="font-medium text-red-500">-{stressTestSimulation.totalBorrowPaid.toFixed(2)}</p>
-                        </div>
-                      </div>
-                      <p className={`text-center font-medium text-sm ${isStressTestGrowing ? "text-emerald-500" : "text-amber-500"}`}>
-                        ${(stressTestSimulation.finalNetPosition * currentPrice).toFixed(0)} USD
-                      </p>
+                       <div className="grid grid-cols-2 gap-2 text-[10px] sm:text-xs">
+                         {(() => {
+                           const netYield = stressTestSimulation.finalNetPosition - initialAmount
+                           const isNegative = netYield < 0
+                           return (
+                             <div className={`p-1.5 rounded border ${
+                               isNegative
+                                 ? "bg-red-500/10 border-red-500/20"
+                                 : "bg-emerald-500/10 border-emerald-500/20"
+                             }`}>
+                               <p className="text-muted-foreground">Net Yield</p>
+                               <p className={`font-medium ${isNegative ? "text-red-500" : "text-emerald-500"}`}>
+                                 {netYield >= 0 ? "+" : ""}{netYield.toFixed(2)}
+                               </p>
+                             </div>
+                           )
+                         })()}
+                         <div className="p-1.5 rounded bg-slate-500/10 border border-slate-500/20">
+                           <p className="text-muted-foreground mb-1">Breakdown</p>
+                           <div className="flex justify-center items-center gap-1.5">
+                             <p className="font-medium text-emerald-500 text-[10px] sm:text-xs">+{stressTestSimulation.totalSupplyEarned.toFixed(2)}</p>
+                             <p className="font-medium text-red-500 text-[10px] sm:text-xs">-{stressTestSimulation.totalBorrowPaid.toFixed(2)}</p>
+                           </div>
+                         </div>
+                       </div>
+                      {(() => {
+                        const netYield = stressTestSimulation.finalNetPosition - initialAmount
+                        const netYieldUsd = netYield * currentPrice
+                        const isNegative = netYield < 0
+                        return (
+                          <div className="text-center">
+                            <p className={`font-medium text-sm ${isNegative ? "text-red-500" : "text-emerald-500"}`}>
+                              ${netYield >= 0 ? "+" : ""}{netYieldUsd.toFixed(2)} USD
+                            </p>
+                            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
+                              Net Yield Value
+                            </p>
+                          </div>
+                        )
+                      })()}
                     </>
                   )}
                 </CardContent>
