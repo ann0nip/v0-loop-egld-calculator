@@ -19,8 +19,8 @@ export function LoopsTable({ data, currentLtv }: LoopsTableProps) {
             <TableHead className="w-16 sm:w-24 text-[10px] sm:text-sm px-2 sm:px-4">LTV</TableHead>
             <TableHead className="text-[10px] sm:text-sm px-2 sm:px-4">Leverage</TableHead>
             <TableHead className="text-[10px] sm:text-sm px-2 sm:px-4">Net APY</TableHead>
-            <TableHead className="text-[10px] sm:text-sm px-2 sm:px-4 hidden sm:table-cell">Final (EGLD eq.)</TableHead>
-            <TableHead className="text-[10px] sm:text-sm px-2 sm:px-4 hidden md:table-cell">Annual (EGLD eq.)</TableHead>
+            <TableHead className="text-[10px] sm:text-sm px-2 sm:px-4 hidden sm:table-cell">Final net position (EGLD)</TableHead>
+            <TableHead className="text-[10px] sm:text-sm px-2 sm:px-4 hidden md:table-cell">Annual net yield (EGLD)</TableHead>
             <TableHead className="text-[10px] sm:text-sm px-2 sm:px-4">Annual ($)</TableHead>
           </TableRow>
         </TableHeader>
@@ -40,11 +40,6 @@ export function LoopsTable({ data, currentLtv }: LoopsTableProps) {
                 <TableCell className="font-medium text-[10px] sm:text-sm py-2 sm:py-4 px-2 sm:px-4">
                   <div className="flex items-center gap-1">
                     {(row.effLtv * 100).toFixed(1)}%
-                    {isCurrentLtv && (
-                      <Badge variant="outline" className="text-[8px] sm:text-xs border-emerald-500 text-emerald-500 px-1 hidden sm:inline-flex">
-                        Selected
-                      </Badge>
-                    )}
                   </div>
                 </TableCell>
                 <TableCell className="text-[10px] sm:text-sm py-2 sm:py-4 px-2 sm:px-4 font-mono">

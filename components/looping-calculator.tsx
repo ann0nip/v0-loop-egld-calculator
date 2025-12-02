@@ -422,13 +422,13 @@ export function LoopingCalculator() {
 
               <div className="space-y-2">
                 <Label className="flex items-center gap-2 text-sm">
-                  Initial Deposit (EGLD eq.)
+                  Initial Deposit (EGLD)
                   <Tooltip>
                     <TooltipTrigger>
                       <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs text-xs sm:text-sm">Your starting collateral in EGLD equivalent value. This is the EGLD value of the xEGLD you deposit.</p>
+                      <p className="max-w-xs text-xs sm:text-sm">Your starting collateral in EGLD. This is the EGLD value of the xEGLD you deposit.</p>
                     </TooltipContent>
                   </Tooltip>
                 </Label>
@@ -606,8 +606,8 @@ export function LoopingCalculator() {
             {/* Educational Cards - Only visible on desktop */}
             <div className="hidden lg:grid lg:grid-cols-1 gap-4">
               <Card>
-                <CardHeader className="pb-3 sm:pb-6">
-                  <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <CardHeader className="">
+                  <CardTitle className="text-base sm:text-lg flex items-center">
                     <Info className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-500" />
                     Why High LTV Works
                   </CardTitle>
@@ -626,8 +626,24 @@ export function LoopingCalculator() {
               </Card>
 
               <Card>
-                <CardHeader className="pb-3 sm:pb-6">
-                  <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <CardHeader className="">
+                  <CardTitle className="text-base sm:text-lg flex items-center">
+                    <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
+                    How It Works
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-muted-foreground">
+                  <p>1. Supply xEGLD as collateral</p>
+                  <p>2. Borrow EGLD up to LTV limit</p>
+                  <p>3. Swap borrowed EGLD to xEGLD</p>
+                  <p>4. Supply new xEGLD, repeat until target LTV</p>
+                  <p className="text-xs mt-2">Your xEGLD quantity stays ~constant, but its EGLD value grows via staking rewards while your EGLD debt grows via borrow interest.</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="">
+                  <CardTitle className="text-base sm:text-lg flex items-center">
                     <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
                     When to Worry
                   </CardTitle>
@@ -644,22 +660,6 @@ export function LoopingCalculator() {
                   </p>
                 </CardContent>
               </Card>
-
-              <Card>
-                <CardHeader className="pb-3 sm:pb-6">
-                  <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                    <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
-                    How It Works
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-muted-foreground">
-                  <p>1. Supply xEGLD as collateral</p>
-                  <p>2. Borrow EGLD up to LTV limit</p>
-                  <p>3. Swap borrowed EGLD to xEGLD</p>
-                  <p>4. Supply new xEGLD, repeat until target LTV</p>
-                  <p className="text-xs mt-2">Your xEGLD quantity stays ~constant, but its EGLD value grows via staking rewards while your EGLD debt grows via borrow interest.</p>
-                </CardContent>
-              </Card>
             </div>
           </div>
 
@@ -672,7 +672,7 @@ export function LoopingCalculator() {
               <AlertDescription className="text-xs sm:text-sm text-muted-foreground">
                 <strong className="text-foreground">HIGH LTV ≠ HIGH RISK</strong> as long as xEGLD staking APY {">"} EGLD borrow APY.
                 Slow liquidation only happens when borrow APY {">"} staking APY — and even then, it&apos;s a slow, predictable increase in LTV, not sudden liquidation.
-                <br /><span className="text-[10px] mt-1 block">All values shown in EGLD equivalent (the EGLD value of your xEGLD position).</span>
+                <br /><span className="text-[10px] mt-1 block">All values shown in EGLD (the EGLD value of your xEGLD position).</span>
               </AlertDescription>
             </Alert>
 
@@ -908,7 +908,7 @@ export function LoopingCalculator() {
               <CardHeader className="pb-3 sm:pb-6">
                 <CardTitle className="text-lg sm:text-xl">Position Evolution (Stress Test)</CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
-                  {sdkLoading ? <Skeleton className="h-4 w-64" /> : `Net position in EGLD equivalent over 1 year with ${totalHighBorrowDays} days of high borrow APY`}
+                  {sdkLoading ? <Skeleton className="h-4 w-64" /> : `Net position (EGLD) over 1 year with ${totalHighBorrowDays} days of high borrow APY`}
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-2 sm:px-6">
@@ -936,8 +936,8 @@ export function LoopingCalculator() {
         {/* Educational Section - Only visible on mobile/tablet */}
         <div className="mt-6 sm:mt-8 grid md:grid-cols-3 gap-4 sm:gap-6 lg:hidden">
           <Card>
-            <CardHeader className="pb-3 sm:pb-6">
-              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <CardHeader className="">
+              <CardTitle className="text-base sm:text-lg flex items-center ">
                 <Info className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-500" />
                 Why High LTV Works
               </CardTitle>
@@ -956,8 +956,24 @@ export function LoopingCalculator() {
           </Card>
 
           <Card>
-            <CardHeader className="pb-3 sm:pb-6">
-              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <CardHeader className="">
+              <CardTitle className="text-base sm:text-lg flex items-center ">
+                <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
+                How It Works
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-muted-foreground">
+              <p>1. Supply xEGLD as collateral</p>
+              <p>2. Borrow EGLD up to LTV limit</p>
+              <p>3. Swap borrowed EGLD to xEGLD</p>
+              <p>4. Supply new xEGLD, repeat until target LTV</p>
+              <p className="text-xs mt-2">Your xEGLD quantity stays ~constant, but its EGLD value grows via staking rewards while your EGLD debt grows via borrow interest.</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="">
+              <CardTitle className="text-base sm:text-lg flex items-center ">
                 <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
                 When to Worry
               </CardTitle>
@@ -972,22 +988,6 @@ export function LoopingCalculator() {
               <p>
                 It&apos;s not rational to borrow at extremely high interest → demand drops → APYs normalize.
               </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3 sm:pb-6">
-              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
-                How It Works
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-muted-foreground">
-              <p>1. Supply xEGLD as collateral</p>
-              <p>2. Borrow EGLD up to LTV limit</p>
-              <p>3. Swap borrowed EGLD to xEGLD</p>
-              <p>4. Supply new xEGLD, repeat until target LTV</p>
-              <p className="text-xs mt-2">Your xEGLD quantity stays ~constant, but its EGLD value grows via staking rewards while your EGLD debt grows via borrow interest.</p>
             </CardContent>
           </Card>
         </div>

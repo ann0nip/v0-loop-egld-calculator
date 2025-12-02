@@ -98,7 +98,7 @@ export function ApyChart({ simulationPoints, initialAmount, highBorrowPeriods, h
               tick={{ fill: "hsl(var(--foreground))", fontSize: 10 }}
               axisLine={{ stroke: "hsl(var(--border))" }}
               tickLine={{ stroke: "hsl(var(--border))" }}
-              label={{ value: "Net Position (EGLD eq.)", angle: -90, position: "insideLeft", fill: "hsl(var(--foreground))", fontSize: 10, dx: 10 }}
+              label={{ value: "Net Position (EGLD)", angle: -90, position: "insideLeft", fill: "hsl(var(--foreground))", fontSize: 10, dx: 10 }}
             />
             <Tooltip
               contentStyle={{
@@ -109,8 +109,8 @@ export function ApyChart({ simulationPoints, initialAmount, highBorrowPeriods, h
                 fontSize: "12px",
               }}
               formatter={(value: number, name: string) => {
-                if (name === "netPosition") return [`${value.toFixed(2)} EGLD eq.`, "Net Position"]
-                if (name === "collateral") return [`${value.toFixed(2)} EGLD eq.`, "Collateral Value"]
+                if (name === "netPosition") return [`${value.toFixed(2)} EGLD`, "Net Position"]
+                if (name === "collateral") return [`${value.toFixed(2)} EGLD`, "Collateral Value"]
                 if (name === "debt") return [`${value.toFixed(2)} EGLD`, "Debt"]
                 return [value, name]
               }}
@@ -135,7 +135,7 @@ export function ApyChart({ simulationPoints, initialAmount, highBorrowPeriods, h
       <div className="flex flex-wrap items-center justify-center gap-4 text-[10px] sm:text-xs text-muted-foreground">
         <div className="flex items-center gap-1">
           <div className={`w-3 h-0.5 ${isGrowing ? "bg-emerald-500" : "bg-red-500"}`} />
-          <span>Net Position (EGLD eq.)</span>
+          <span>Net Position (EGLD)</span>
         </div>
       </div>
     </div>
