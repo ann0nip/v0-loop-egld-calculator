@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback, useRef } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef, type RefCallback } from "react"
 import Image from "next/image"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -19,21 +19,24 @@ import {
   generateLtvComparison,
   type YearSimulationResult,
 } from "@/lib/calculations"
-import { fetchXoxnoMarketData, type XoxnoMarketData } from "@/lib/xoxno-api"
+import { fetchXoxnoMarketData } from "@/lib/xoxno-api"
 import { useIMask } from "react-imask"
 import { Skeleton } from "@/components/ui/skeleton"
+
+// Type helper for IMask ref compatibility with shadcn Input
+type IMaskRef = RefCallback<HTMLInputElement> | React.MutableRefObject<HTMLInputElement | null>
 
 export function LoopingCalculator() {
   const [initialAmount, setInitialAmount] = useState(100) // Initial deposit in EGLD equivalent
   const [supplyApy, setSupplyApy] = useState(0)
   const [borrowApy, setBorrowApy] = useState(0)
   const [ltvTarget, setLtvTarget] = useState(0.925) // Default to SDK's optimal LTV
-  const [egldPrice, setEgldPrice] = useState<number>(0) // EGLD price in USD
-  const [xegldRatio, setXegldRatio] = useState<number>(1.06) // xEGLD/EGLD ratio (1 xEGLD = X EGLD)
+  const [egldPrice, setEgldPrice] = useState<number | null>(null) // EGLD price in USD
+  const [xegldRatio, setXegldRatio] = useState<number | null>(null) // xEGLD/EGLD ratio (1 xEGLD = X EGLD)
   const [sdkLoading, setSdkLoading] = useState(true)
-  const [dataSource, setDataSource] = useState<"live" | "fallback">("fallback")
+  const [dataSource, setDataSource] = useState<"live" | "error">("live")
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
-  const [loadError, setLoadError] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const hasSyncedMasks = useRef(false)
 
   // High borrow period settings
@@ -161,27 +164,24 @@ export function LoopingCalculator() {
 
   const fetchMarketData = useCallback(async () => {
     setSdkLoading(true)
-    setLoadError(false)
+    setLoadError(null)
     try {
-      const data: XoxnoMarketData = await fetchXoxnoMarketData()
+      const data = await fetchXoxnoMarketData()
 
-      // Always set the values (either live or fallback)
+      // Set the live values
       setSupplyApy(data.supplyApy)
       setBorrowApy(data.borrowApy)
       setLtvTarget(data.ltv)
       setEgldPrice(data.egldPrice)
       setXegldRatio(data.xegldRatio)
-      setDataSource(data.source)
+      setDataSource("live")
       setLastUpdated(new Date())
-
-      // Show error if using fallback data
-      if (data.source === "fallback") {
-        setLoadError(true)
-      }
-    } catch {
-      // This shouldn't happen since fetchXoxnoMarketData handles errors
-      // but keep it as a safety net
-      setLoadError(true)
+    } catch (error) {
+      // Set error state but don't block the user - they can enter values manually
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch market data"
+      setLoadError(errorMessage)
+      setDataSource("error")
+      // Keep existing values or leave as null for manual input
     } finally {
       setSdkLoading(false)
     }
@@ -191,39 +191,45 @@ export function LoopingCalculator() {
     fetchMarketData()
   }, [fetchMarketData])
 
-  // Sync IMask values ONLY when SDK finishes loading (one-time sync)
+  // Sync IMask values ONLY once when SDK finishes loading
+  // Using refs to access current state values avoids dependency issues
+  const stateRef = useRef({
+    initialAmount, egldPrice, supplyApy, borrowApy,
+    highBorrowApy, highBorrowPeriods, highBorrowDaysPerPeriod
+  })
+  stateRef.current = {
+    initialAmount, egldPrice, supplyApy, borrowApy,
+    highBorrowApy, highBorrowPeriods, highBorrowDaysPerPeriod
+  }
+
   useEffect(() => {
-    if (!sdkLoading && egldPrice > 0 && !hasSyncedMasks.current) {
-      // Only set values from SDK data, don't create a loop
-      initialAmountMask.setValue(initialAmount.toString())
-      egldPriceMask.setValue(egldPrice.toString())
-      supplyApyMask.setValue(supplyApy.toString())
-      borrowApyMask.setValue(borrowApy.toString())
-      highBorrowApyMask.setValue(highBorrowApy.toString())
-      highBorrowPeriodsMask.setValue(highBorrowPeriods.toString())
-      highBorrowDaysMask.setValue(highBorrowDaysPerPeriod.toString())
+    if (!sdkLoading && !hasSyncedMasks.current) {
+      const state = stateRef.current
+
+      // Always sync initial amount and stress test params
+      initialAmountMask.setValue(state.initialAmount.toString())
+      highBorrowApyMask.setValue(state.highBorrowApy.toString())
+      highBorrowPeriodsMask.setValue(state.highBorrowPeriods.toString())
+      highBorrowDaysMask.setValue(state.highBorrowDaysPerPeriod.toString())
+
+      // Only sync SDK values if they were successfully fetched (not null/0)
+      if (state.egldPrice !== null) {
+        egldPriceMask.setValue(state.egldPrice.toString())
+      }
+      if (state.supplyApy > 0) {
+        supplyApyMask.setValue(state.supplyApy.toString())
+      }
+      if (state.borrowApy > 0) {
+        borrowApyMask.setValue(state.borrowApy.toString())
+      }
+
       hasSyncedMasks.current = true
     }
-  }, [
-    sdkLoading,
-    egldPrice,
-    initialAmount,
-    supplyApy,
-    borrowApy,
-    highBorrowApy,
-    highBorrowPeriods,
-    highBorrowDaysPerPeriod,
-    initialAmountMask,
-    egldPriceMask,
-    supplyApyMask,
-    borrowApyMask,
-    highBorrowApyMask,
-    highBorrowPeriodsMask,
-    highBorrowDaysMask,
-  ])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sdkLoading])
 
-  // Current EGLD price for USD calculations
-  const currentPrice = egldPrice
+  // Current EGLD price for USD calculations (default to 0 if not loaded)
+  const currentPrice = egldPrice ?? 0
 
   // Build high borrow periods array (matching Python format)
   const highBorrowPeriodsArray = useMemo(() => {
@@ -314,8 +320,12 @@ export function LoopingCalculator() {
                   </div>
                   <div>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wide">EGLD Price</p>
-                    <p className="text-2xl font-bold text-foreground">${egldPrice.toFixed(2)}</p>
-                    <p className="text-[9px] text-muted-foreground">1 xEGLD = {xegldRatio.toFixed(4)} EGLD</p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {egldPrice !== null ? `$${egldPrice.toFixed(2)}` : "—"}
+                    </p>
+                    <p className="text-[9px] text-muted-foreground">
+                      {xegldRatio !== null ? `1 xEGLD = ${xegldRatio.toFixed(4)} EGLD` : "xEGLD ratio unavailable"}
+                    </p>
                   </div>
                 </div>
                 <Badge
@@ -327,7 +337,7 @@ export function LoopingCalculator() {
                   }`}
                 >
                   <Radio className={`w-2.5 h-2.5 mr-1 ${dataSource === "live" ? "text-emerald-500" : "text-amber-500"}`} />
-                  <span className="text-[10px]">{dataSource === "live" ? "Live" : "Fallback"}</span>
+                  <span className="text-[10px]">{dataSource === "live" ? "Live" : "Manual"}</span>
                 </Badge>
               </div>
 
@@ -358,9 +368,15 @@ export function LoopingCalculator() {
                   <Image src="/egld-logo.svg" alt="EGLD Logo" width={48} height={48} />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Live EGLD Price</p>
-                  <p className="text-2xl font-bold text-foreground">${egldPrice.toFixed(2)}</p>
-                  <p className="text-xs text-muted-foreground">1 xEGLD = {xegldRatio.toFixed(4)} EGLD</p>
+                  <p className="text-sm text-muted-foreground">
+                    {dataSource === "live" ? "Live EGLD Price" : "EGLD Price (enter manually)"}
+                  </p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {egldPrice !== null ? `$${egldPrice.toFixed(2)}` : "—"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {xegldRatio !== null ? `1 xEGLD = ${xegldRatio.toFixed(4)} EGLD` : "xEGLD ratio unavailable"}
+                  </p>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-2">
@@ -376,7 +392,7 @@ export function LoopingCalculator() {
                     <Radio
                       className={`w-3 h-3 mr-1 ${dataSource === "live" ? "text-emerald-500" : "text-amber-500"}`}
                     />
-                    {dataSource === "live" ? "Live Data" : "Fallback Data"}
+                    {dataSource === "live" ? "Live Data" : "Manual Input"}
                   </Badge>
                   <Button
                     variant="outline"
@@ -413,9 +429,9 @@ export function LoopingCalculator() {
               {loadError && (
                 <Alert className="border-amber-500/50 bg-amber-500/10">
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
-                  <AlertTitle className="text-amber-600">Using Fallback Data</AlertTitle>
+                  <AlertTitle className="text-amber-600">Could not load live data</AlertTitle>
                   <AlertDescription className="text-muted-foreground">
-                    Could not fetch live data from Xoxno SDK. Using fallback values. You can edit them manually or try refreshing.
+                    {loadError}. Please enter the values manually below or try refreshing.
                   </AlertDescription>
                 </Alert>
               )}
@@ -433,8 +449,9 @@ export function LoopingCalculator() {
                   </Tooltip>
                 </Label>
                 <Input
-                  ref={initialAmountMask.ref as any}
+                  ref={initialAmountMask.ref as IMaskRef}
                   placeholder="0"
+                  aria-label="Initial deposit amount in EGLD"
                 />
               </div>
 
@@ -459,8 +476,9 @@ export function LoopingCalculator() {
                   <Skeleton className="h-10 w-full" />
                 ) : (
                   <Input
-                    ref={egldPriceMask.ref as any}
+                    ref={egldPriceMask.ref as IMaskRef}
                     placeholder="0"
+                    aria-label="EGLD price in USD"
                   />
                 )}
               </div>
@@ -486,8 +504,9 @@ export function LoopingCalculator() {
                   <Skeleton className="h-10 w-full" />
                 ) : (
                   <Input
-                    ref={supplyApyMask.ref as any}
+                    ref={supplyApyMask.ref as IMaskRef}
                     placeholder="0"
+                    aria-label="xEGLD staking APY percentage"
                   />
                 )}
               </div>
@@ -513,8 +532,9 @@ export function LoopingCalculator() {
                   <Skeleton className="h-10 w-full" />
                 ) : (
                   <Input
-                    ref={borrowApyMask.ref as any}
+                    ref={borrowApyMask.ref as IMaskRef}
                     placeholder="0"
+                    aria-label="EGLD borrow APY percentage"
                   />
                 )}
               </div>
@@ -574,8 +594,9 @@ export function LoopingCalculator() {
                     </Tooltip>
                   </Label>
                   <Input
-                    ref={highBorrowApyMask.ref as any}
+                    ref={highBorrowApyMask.ref as IMaskRef}
                     placeholder="0"
+                    aria-label="High borrow APY percentage for stress test"
                   />
                 </div>
 
@@ -583,15 +604,17 @@ export function LoopingCalculator() {
                   <div className="space-y-2">
                     <Label className="text-xs">Number of Periods</Label>
                     <Input
-                      ref={highBorrowPeriodsMask.ref as any}
+                      ref={highBorrowPeriodsMask.ref as IMaskRef}
                       placeholder="0"
+                      aria-label="Number of high borrow periods"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs">Days per Period</Label>
                     <Input
-                      ref={highBorrowDaysMask.ref as any}
+                      ref={highBorrowDaysMask.ref as IMaskRef}
                       placeholder="1"
+                      aria-label="Days per high borrow period"
                     />
                   </div>
                 </div>
@@ -923,9 +946,6 @@ export function LoopingCalculator() {
                 ) : (
                   <ApyChart
                     simulationPoints={stressTestSimulation.points}
-                    initialAmount={initialAmount}
-                    highBorrowPeriods={highBorrowPeriods}
-                    highBorrowDays={highBorrowDaysPerPeriod}
                   />
                 )}
               </CardContent>

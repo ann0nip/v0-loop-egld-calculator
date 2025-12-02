@@ -64,13 +64,14 @@ export async function GET() {
   } catch (error) {
     console.error("[v0] Xoxno SDK error:", error)
     return NextResponse.json({
-      supplyApy: 0,
-      borrowApy: 0,
-      ltv: 0,
-      liquidationThreshold: 0,
-      egldPrice: 0,
-      xegldRatio: 0,
-      source: "fallback",
-    })
+      supplyApy: null,
+      borrowApy: null,
+      ltv: null,
+      liquidationThreshold: null,
+      egldPrice: null,
+      xegldRatio: null,
+      source: "error",
+      error: error instanceof Error ? error.message : "Unknown error",
+    }, { status: 500 })
   }
 }

@@ -8,18 +8,14 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,
 } from "recharts"
 import type { SimulationPoint } from "@/lib/calculations"
 
 interface ApyChartProps {
   simulationPoints: SimulationPoint[]
-  initialAmount: number
-  highBorrowPeriods: number
-  highBorrowDays: number
 }
 
-export function ApyChart({ simulationPoints, initialAmount, highBorrowPeriods, highBorrowDays }: ApyChartProps) {
+export function ApyChart({ simulationPoints }: ApyChartProps) {
   const chartData = simulationPoints.map((p) => ({
     day: p.day,
     netPosition: Number(p.netPosition.toFixed(2)),
@@ -37,23 +33,6 @@ export function ApyChart({ simulationPoints, initialAmount, highBorrowPeriods, h
 
   // Determine if position is growing overall
   const isGrowing = chartData.length > 1 && chartData[chartData.length - 1].netPosition > chartData[0].netPosition
-
-  // Calculate high borrow period markers
-  const totalHighDays = highBorrowPeriods * highBorrowDays
-  const periodSpacing = highBorrowPeriods > 0 ? Math.floor(365 / highBorrowPeriods) : 0
-  const highBorrowMarkers: { start: number; end: number }[] = []
-
-  if (highBorrowPeriods > 0 && highBorrowDays > 0) {
-    let currentDay = 0
-    for (let i = 0; i < highBorrowPeriods; i++) {
-      const startDay = currentDay + Math.floor(periodSpacing / 2) - Math.floor(highBorrowDays / 2)
-      highBorrowMarkers.push({
-        start: Math.max(0, startDay),
-        end: Math.min(365, startDay + highBorrowDays),
-      })
-      currentDay += periodSpacing
-    }
-  }
 
   return (
     <div className="space-y-2">
@@ -76,13 +55,6 @@ export function ApyChart({ simulationPoints, initialAmount, highBorrowPeriods, h
             </defs>
 
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-
-            {/* Initial amount reference line */}
-            <ReferenceLine
-              y={initialAmount}
-              stroke="hsl(var(--muted-foreground))"
-              strokeDasharray="5 5"
-            />
 
             <XAxis
               dataKey="day"

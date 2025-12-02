@@ -60,12 +60,19 @@ export function calculateTheoreticalPosition(
 /**
  * Simulates position evolution over N days with variable borrow APY periods
  * This matches the Python simulation_engine.py exactly
+ *
+ * @param initialAmount - Initial deposit in EGLD (the EGLD value you start with)
+ * @param ltvTarget - Target LTV ratio (e.g., 0.925 for 92.5%)
+ * @param supplyApr - xEGLD staking APR as decimal (e.g., 0.165 for 16.5%) - this captures xegldRatio growth
+ * @param borrowAprNormal - EGLD borrow APR as decimal (e.g., 0.12 for 12%)
+ * @param highBorrowPeriods - Array of high borrow periods for stress testing
+ * @param days - Number of days to simulate
  */
 export function simulateYear(
   initialAmount: number,
   ltvTarget: number,
-  supplyApr: number, // as decimal, e.g., 0.165 for 16.5%
-  borrowAprNormal: number, // as decimal, e.g., 0.12 for 12%
+  supplyApr: number,
+  borrowAprNormal: number,
   highBorrowPeriods: HighBorrowPeriod[] = [],
   days: number = 365,
 ): YearSimulationResult {
@@ -78,6 +85,9 @@ export function simulateYear(
   const borrowDailyNormal = aprToDaily(borrowAprNormal)
 
   // Initialize supply and borrow (matches Python exactly)
+  // Supply represents the EGLD-equivalent value of your xEGLD collateral
+  // Borrow is the EGLD debt
+  // The supplyApr already captures the xEGLD/EGLD ratio appreciation (staking rewards)
   let supply = initialAmount * leverage
   let borrow = initialAmount * borrowMultiple
 
