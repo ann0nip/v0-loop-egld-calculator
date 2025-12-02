@@ -3,18 +3,9 @@ export interface XoxnoMarketData {
   borrowApy: number
   ltv: number
   liquidationThreshold: number
-  price: number
+  egldPrice: number // EGLD price in USD
+  xegldRatio: number // How many EGLD you get per 1 xEGLD (e.g., 1.06 means 1 xEGLD = 1.06 EGLD)
   source: "live" | "fallback"
-}
-
-// Fallback values if SDK fails
-export const FALLBACK_DATA: XoxnoMarketData = {
-  supplyApy: 6.09,
-  borrowApy: 4.53,
-  ltv: 0.925,
-  liquidationThreshold: 0.965,
-  price: 8,
-  source: "fallback",
 }
 
 export async function fetchXoxnoMarketData(): Promise<XoxnoMarketData> {
@@ -25,12 +16,22 @@ export async function fetchXoxnoMarketData(): Promise<XoxnoMarketData> {
     })
 
     if (!response.ok) {
-      return FALLBACK_DATA
+      throw new Error("Failed to fetch market data")
     }
 
     const data = await response.json()
     return data as XoxnoMarketData
   } catch (error) {
-    return FALLBACK_DATA
+    console.error("Error fetching Xoxno market data:", error)
+    // Return zeros if fetch fails
+    return {
+      supplyApy: 0,
+      borrowApy: 0,
+      ltv: 0,
+      liquidationThreshold: 0,
+      egldPrice: 0,
+      xegldRatio: 0,
+      source: "fallback",
+    }
   }
 }

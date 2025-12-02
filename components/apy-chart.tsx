@@ -82,12 +82,6 @@ export function ApyChart({ simulationPoints, initialAmount, highBorrowPeriods, h
               y={initialAmount}
               stroke="hsl(var(--muted-foreground))"
               strokeDasharray="5 5"
-              label={{
-                value: `Initial: ${initialAmount}`,
-                fill: "hsl(var(--muted-foreground))",
-                fontSize: 10,
-                position: "right"
-              }}
             />
 
             <XAxis
@@ -104,7 +98,7 @@ export function ApyChart({ simulationPoints, initialAmount, highBorrowPeriods, h
               tick={{ fill: "hsl(var(--foreground))", fontSize: 10 }}
               axisLine={{ stroke: "hsl(var(--border))" }}
               tickLine={{ stroke: "hsl(var(--border))" }}
-              label={{ value: "Net Position (xEGLD)", angle: -90, position: "insideLeft", fill: "hsl(var(--foreground))", fontSize: 10, dx: 10 }}
+              label={{ value: "Net Position (EGLD eq.)", angle: -90, position: "insideLeft", fill: "hsl(var(--foreground))", fontSize: 10, dx: 10 }}
             />
             <Tooltip
               contentStyle={{
@@ -115,8 +109,8 @@ export function ApyChart({ simulationPoints, initialAmount, highBorrowPeriods, h
                 fontSize: "12px",
               }}
               formatter={(value: number, name: string) => {
-                if (name === "netPosition") return [`${value.toFixed(2)} xEGLD`, "Net Position"]
-                if (name === "collateral") return [`${value.toFixed(2)} xEGLD`, "Collateral"]
+                if (name === "netPosition") return [`${value.toFixed(2)} EGLD eq.`, "Net Position"]
+                if (name === "collateral") return [`${value.toFixed(2)} EGLD eq.`, "Collateral Value"]
                 if (name === "debt") return [`${value.toFixed(2)} EGLD`, "Debt"]
                 return [value, name]
               }}
@@ -141,18 +135,8 @@ export function ApyChart({ simulationPoints, initialAmount, highBorrowPeriods, h
       <div className="flex flex-wrap items-center justify-center gap-4 text-[10px] sm:text-xs text-muted-foreground">
         <div className="flex items-center gap-1">
           <div className={`w-3 h-0.5 ${isGrowing ? "bg-emerald-500" : "bg-red-500"}`} />
-          <span>Net Position</span>
+          <span>Net Position (EGLD eq.)</span>
         </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-0.5 bg-muted-foreground" style={{ backgroundImage: "repeating-linear-gradient(90deg, transparent, transparent 2px, currentColor 2px, currentColor 4px)" }} />
-          <span>Initial Amount</span>
-        </div>
-        {totalHighDays > 0 && (
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-2 bg-amber-500/30 rounded-sm" />
-            <span>{highBorrowPeriods} high borrow periods ({totalHighDays} days)</span>
-          </div>
-        )}
       </div>
     </div>
   )

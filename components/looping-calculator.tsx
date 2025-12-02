@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
+import Image from "next/image"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -23,11 +24,12 @@ import { useIMask } from "react-imask"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export function LoopingCalculator() {
-  const [initialAmount, setInitialAmount] = useState(100)
+  const [initialAmount, setInitialAmount] = useState(100) // Initial deposit in EGLD equivalent
   const [supplyApy, setSupplyApy] = useState(0)
   const [borrowApy, setBorrowApy] = useState(0)
   const [ltvTarget, setLtvTarget] = useState(0.925) // Default to SDK's optimal LTV
-  const [egldPrice, setEgldPrice] = useState<number>(0)
+  const [egldPrice, setEgldPrice] = useState<number>(0) // EGLD price in USD
+  const [xegldRatio, setXegldRatio] = useState<number>(1.06) // xEGLD/EGLD ratio (1 xEGLD = X EGLD)
   const [sdkLoading, setSdkLoading] = useState(true)
   const [dataSource, setDataSource] = useState<"live" | "fallback">("fallback")
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
@@ -167,7 +169,8 @@ export function LoopingCalculator() {
       setSupplyApy(data.supplyApy)
       setBorrowApy(data.borrowApy)
       setLtvTarget(data.ltv)
-      setEgldPrice(data.price)
+      setEgldPrice(data.egldPrice)
+      setXegldRatio(data.xegldRatio)
       setDataSource(data.source)
       setLastUpdated(new Date())
 
@@ -219,6 +222,7 @@ export function LoopingCalculator() {
     highBorrowDaysMask,
   ])
 
+  // Current EGLD price for USD calculations
   const currentPrice = egldPrice
 
   // Build high borrow periods array (matching Python format)
@@ -306,11 +310,12 @@ export function LoopingCalculator() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                    <span className="font-bold text-emerald-500 text-lg">X</span>
+                    <span className="font-bold text-emerald-500 text-lg">⚡</span>
                   </div>
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">xEGLD Price</p>
-                    <p className="text-2xl font-bold text-foreground">${currentPrice.toFixed(2)}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">EGLD Price</p>
+                    <p className="text-2xl font-bold text-foreground">${egldPrice.toFixed(2)}</p>
+                    <p className="text-[9px] text-muted-foreground">1 xEGLD = {xegldRatio.toFixed(4)} EGLD</p>
                   </div>
                 </div>
                 <Badge
@@ -350,11 +355,12 @@ export function LoopingCalculator() {
             <div className="hidden sm:flex sm:flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                  <span className="font-bold text-emerald-500">X</span>
+                  <Image src="/egld-logo.svg" alt="EGLD Logo" width={48} height={48} />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Live xEGLD Price (from Xoxno SDK)</p>
-                  <p className="text-2xl font-bold text-foreground">${currentPrice.toFixed(2)}</p>
+                  <p className="text-sm text-muted-foreground">Live EGLD Price</p>
+                  <p className="text-2xl font-bold text-foreground">${egldPrice.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">1 xEGLD = {xegldRatio.toFixed(4)} EGLD</p>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-2">
@@ -416,13 +422,13 @@ export function LoopingCalculator() {
 
               <div className="space-y-2">
                 <Label className="flex items-center gap-2 text-sm">
-                  Initial Deposit (xEGLD)
+                  Initial Deposit (EGLD eq.)
                   <Tooltip>
                     <TooltipTrigger>
                       <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs text-xs sm:text-sm">Your starting xEGLD collateral amount</p>
+                      <p className="max-w-xs text-xs sm:text-sm">Your starting collateral in EGLD equivalent value. This is the EGLD value of the xEGLD you deposit.</p>
                     </TooltipContent>
                   </Tooltip>
                 </Label>
@@ -434,13 +440,13 @@ export function LoopingCalculator() {
 
               <div className="space-y-2">
                 <Label className="flex items-center gap-2 text-sm">
-                  xEGLD Price ($)
+                  EGLD Price ($)
                   <Tooltip>
                     <TooltipTrigger>
                       <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs text-xs sm:text-sm">Current xEGLD price from Xoxno SDK (editable)</p>
+                      <p className="max-w-xs text-xs sm:text-sm">Current EGLD price from Xoxno SDK (editable)</p>
                     </TooltipContent>
                   </Tooltip>
                   {dataSource === "live" && (
@@ -461,13 +467,13 @@ export function LoopingCalculator() {
 
               <div className="space-y-2">
                 <Label className="flex items-center gap-2 text-sm">
-                  Supply APY (%)
+                  xEGLD Staking APY (%)
                   <Tooltip>
                     <TooltipTrigger>
                       <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs text-xs sm:text-sm">Current yield for supplying xEGLD on xLend</p>
+                      <p className="max-w-xs text-xs sm:text-sm">Native staking yield from xEGLD. Your xEGLD value in EGLD grows at this rate.</p>
                     </TooltipContent>
                   </Tooltip>
                   {dataSource === "live" && (
@@ -488,13 +494,13 @@ export function LoopingCalculator() {
 
               <div className="space-y-2">
                 <Label className="flex items-center gap-2 text-sm">
-                  Normal Borrow APY (%)
+                  EGLD Borrow APY (%)
                   <Tooltip>
                     <TooltipTrigger>
                       <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs text-xs sm:text-sm">Normal cost to borrow EGLD on xLend</p>
+                      <p className="max-w-xs text-xs sm:text-sm">Cost to borrow EGLD on xLend. Your debt grows at this rate.</p>
                     </TooltipContent>
                   </Tooltip>
                   {dataSource === "live" && (
@@ -608,13 +614,13 @@ export function LoopingCalculator() {
                 </CardHeader>
                 <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-muted-foreground">
                   <p>
-                    At <strong className="text-foreground">92.5% LTV</strong>, looping creates ~13.3× leverage on your supplied xEGLD.
+                    At <strong className="text-foreground">92.5% LTV</strong>, looping creates ~13.3× leverage on your collateral value.
                   </p>
                   <p>
-                    Your supply grows much faster than your debt — even with a few &quot;bad&quot; periods of high borrow.
+                    Your xEGLD value (in EGLD) grows faster than your EGLD debt — even with a few &quot;bad&quot; periods of high borrow.
                   </p>
                   <p>
-                    The net curve continues upward as long as supply APY {">"} borrow APY on average.
+                    The net curve continues upward as long as staking APY {">"} borrow APY on average.
                   </p>
                 </CardContent>
               </Card>
@@ -628,7 +634,7 @@ export function LoopingCalculator() {
                 </CardHeader>
                 <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-muted-foreground">
                   <p>
-                    <strong className="text-foreground">Slow liquidation</strong> only happens when borrow APY {">"} supply APY consistently.
+                    <strong className="text-foreground">Slow liquidation</strong> only happens when borrow APY {">"} staking APY consistently.
                   </p>
                   <p>
                     Even then, it&apos;s a slow, predictable increase in LTV — not a sudden liquidation.
@@ -651,7 +657,7 @@ export function LoopingCalculator() {
                   <p>2. Borrow EGLD up to LTV limit</p>
                   <p>3. Swap borrowed EGLD to xEGLD</p>
                   <p>4. Supply new xEGLD, repeat until target LTV</p>
-                  <p className="text-xs mt-2">Higher LTV = more leverage = amplified spread between supply and borrow APY.</p>
+                  <p className="text-xs mt-2">Your xEGLD quantity stays ~constant, but its EGLD value grows via staking rewards while your EGLD debt grows via borrow interest.</p>
                 </CardContent>
               </Card>
             </div>
@@ -664,8 +670,9 @@ export function LoopingCalculator() {
               <Info className="h-4 w-4 text-cyan-500" />
               <AlertTitle className="text-sm sm:text-base text-cyan-600">Key Insight</AlertTitle>
               <AlertDescription className="text-xs sm:text-sm text-muted-foreground">
-                <strong className="text-foreground">HIGH LTV ≠ HIGH RISK</strong> as long as supply APY {">"} borrow APY.
-                Slow liquidation only happens when borrow APY {">"} supply APY — and even then, it&apos;s a slow, predictable increase in LTV, not sudden liquidation.
+                <strong className="text-foreground">HIGH LTV ≠ HIGH RISK</strong> as long as xEGLD staking APY {">"} EGLD borrow APY.
+                Slow liquidation only happens when borrow APY {">"} staking APY — and even then, it&apos;s a slow, predictable increase in LTV, not sudden liquidation.
+                <br /><span className="text-[10px] mt-1 block">All values shown in EGLD equivalent (the EGLD value of your xEGLD position).</span>
               </AlertDescription>
             </Alert>
 
@@ -674,8 +681,8 @@ export function LoopingCalculator() {
               <CardContent className="py-4">
                 <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-center">
                   <div>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">Initial</p>
-                    <p className="text-lg sm:text-xl font-bold">{initialAmount} xEGLD</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Initial value in EGLD</p>
+                    <p className="text-lg sm:text-xl font-bold">{initialAmount}</p>
                   </div>
                   <div className="text-muted-foreground">→</div>
                   <div>
@@ -684,7 +691,7 @@ export function LoopingCalculator() {
                   </div>
                   <div className="text-muted-foreground">→</div>
                   <div>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">Range</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Final net position (EGLD)</p>
                     <p className="text-lg sm:text-xl font-bold">
                       <span className={isStressTestGrowing ? "text-emerald-500" : "text-amber-500"}>
                         {stressTestSimulation.finalNetPosition.toFixed(0)}
@@ -693,7 +700,6 @@ export function LoopingCalculator() {
                       <span className="text-emerald-500">
                         {optimisticSimulation.finalNetPosition.toFixed(0)}
                       </span>
-                      {" xEGLD"}
                     </p>
                   </div>
                 </div>
@@ -733,7 +739,7 @@ export function LoopingCalculator() {
                           <p className={`text-lg sm:text-xl font-bold ${isOptimisticGrowing ? "text-emerald-500" : "text-red-500"}`}>
                             {optimisticSimulation.finalNetPosition.toFixed(2)}
                           </p>
-                          <p className="text-[9px] sm:text-[10px] text-muted-foreground">Final (xEGLD)</p>
+                          <p className="text-[9px] sm:text-[10px] text-muted-foreground">Final net position (EGLD)</p>
                         </div>
                         <div className="text-center p-2 rounded-lg bg-background/50">
                           <p className={`text-lg sm:text-xl font-bold ${isOptimisticGrowing ? "text-emerald-500" : "text-red-500"}`}>
@@ -818,7 +824,7 @@ export function LoopingCalculator() {
                           <p className={`text-lg sm:text-xl font-bold ${isStressTestGrowing ? "text-emerald-500" : "text-amber-500"}`}>
                             {stressTestSimulation.finalNetPosition.toFixed(2)}
                           </p>
-                          <p className="text-[9px] sm:text-[10px] text-muted-foreground">Final (xEGLD)</p>
+                          <p className="text-[9px] sm:text-[10px] text-muted-foreground">Final net position (EGLD)</p>
                         </div>
                         <div className="text-center p-2 rounded-lg bg-background/50">
                           <p className={`text-lg sm:text-xl font-bold ${isStressTestGrowing ? "text-emerald-500" : "text-amber-500"}`}>
@@ -902,7 +908,7 @@ export function LoopingCalculator() {
               <CardHeader className="pb-3 sm:pb-6">
                 <CardTitle className="text-lg sm:text-xl">Position Evolution (Stress Test)</CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
-                  {sdkLoading ? <Skeleton className="h-4 w-64" /> : `Net position over 1 year with ${totalHighBorrowDays} days of high borrow APY`}
+                  {sdkLoading ? <Skeleton className="h-4 w-64" /> : `Net position in EGLD equivalent over 1 year with ${totalHighBorrowDays} days of high borrow APY`}
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-2 sm:px-6">
@@ -938,13 +944,13 @@ export function LoopingCalculator() {
             </CardHeader>
             <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-muted-foreground">
               <p>
-                At <strong className="text-foreground">92.5% LTV</strong>, looping creates ~13.3× leverage on your supplied xEGLD.
+                At <strong className="text-foreground">92.5% LTV</strong>, looping creates ~13.3× leverage on your collateral value.
               </p>
               <p>
-                Your supply grows much faster than your debt — even with a few &quot;bad&quot; periods of high borrow.
+                Your xEGLD value (in EGLD) grows faster than your EGLD debt — even with a few &quot;bad&quot; periods of high borrow.
               </p>
               <p>
-                The net curve continues upward as long as supply APY {">"} borrow APY on average.
+                The net curve continues upward as long as staking APY {">"} borrow APY on average.
               </p>
             </CardContent>
           </Card>
@@ -958,7 +964,7 @@ export function LoopingCalculator() {
             </CardHeader>
             <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-muted-foreground">
               <p>
-                <strong className="text-foreground">Slow liquidation</strong> only happens when borrow APY {">"} supply APY consistently.
+                <strong className="text-foreground">Slow liquidation</strong> only happens when borrow APY {">"} staking APY consistently.
               </p>
               <p>
                 Even then, it&apos;s a slow, predictable increase in LTV — not a sudden liquidation.
@@ -981,7 +987,7 @@ export function LoopingCalculator() {
               <p>2. Borrow EGLD up to LTV limit</p>
               <p>3. Swap borrowed EGLD to xEGLD</p>
               <p>4. Supply new xEGLD, repeat until target LTV</p>
-              <p className="text-xs mt-2">Higher LTV = more leverage = amplified spread between supply and borrow APY.</p>
+              <p className="text-xs mt-2">Your xEGLD quantity stays ~constant, but its EGLD value grows via staking rewards while your EGLD debt grows via borrow interest.</p>
             </CardContent>
           </Card>
         </div>

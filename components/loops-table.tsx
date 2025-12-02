@@ -19,8 +19,8 @@ export function LoopsTable({ data, currentLtv }: LoopsTableProps) {
             <TableHead className="w-16 sm:w-24 text-[10px] sm:text-sm px-2 sm:px-4">LTV</TableHead>
             <TableHead className="text-[10px] sm:text-sm px-2 sm:px-4">Leverage</TableHead>
             <TableHead className="text-[10px] sm:text-sm px-2 sm:px-4">Net APY</TableHead>
-            <TableHead className="text-[10px] sm:text-sm px-2 sm:px-4 hidden sm:table-cell">Final Position</TableHead>
-            <TableHead className="text-[10px] sm:text-sm px-2 sm:px-4 hidden md:table-cell">Annual (EGLD)</TableHead>
+            <TableHead className="text-[10px] sm:text-sm px-2 sm:px-4 hidden sm:table-cell">Final (EGLD eq.)</TableHead>
+            <TableHead className="text-[10px] sm:text-sm px-2 sm:px-4 hidden md:table-cell">Annual (EGLD eq.)</TableHead>
             <TableHead className="text-[10px] sm:text-sm px-2 sm:px-4">Annual ($)</TableHead>
           </TableRow>
         </TableHeader>
@@ -57,7 +57,7 @@ export function LoopsTable({ data, currentLtv }: LoopsTableProps) {
                   {row.netApy >= 0 ? "+" : ""}{row.netApy.toFixed(1)}%
                 </TableCell>
                 <TableCell className="font-mono text-[10px] sm:text-sm py-2 sm:py-4 px-2 sm:px-4 hidden sm:table-cell">
-                  {row.finalPosition.toFixed(2)} xEGLD
+                  {row.finalPosition.toFixed(2)}
                 </TableCell>
                 <TableCell className="font-mono text-[10px] sm:text-sm py-2 sm:py-4 px-2 sm:px-4 hidden md:table-cell">
                   {row.annualEgld >= 0 ? "+" : ""}{row.annualEgld.toFixed(2)}

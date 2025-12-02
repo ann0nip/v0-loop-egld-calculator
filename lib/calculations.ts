@@ -3,16 +3,16 @@ export interface LoopResult {
   netApy: number
   leverage: number
   effLtv: number
-  annualEgld: number
+  annualEgld: number // Annual yield in EGLD equivalent
   annualUsd: number
-  finalPosition: number // Final net position in eGLD after 1 year
+  finalPosition: number // Final net position in EGLD equivalent after 1 year
 }
 
 export interface SimulationPoint {
   day: number
-  netPosition: number // Net position in eGLD (collateral - debt)
-  collateral: number
-  debt: number
+  netPosition: number // Net position in EGLD equivalent (collateral value - debt)
+  collateral: number // Collateral value in EGLD equivalent
+  debt: number // Debt in EGLD
 }
 
 export interface YearSimulationResult {
